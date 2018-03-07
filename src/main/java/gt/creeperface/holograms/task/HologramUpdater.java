@@ -182,7 +182,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                     int j = 0;
                     for (String line : lines) {
                         SetEntityDataPacket pk = new SetEntityDataPacket();
-                        pk.eid = reservedIds[j];
+                        pk.eid = reservedIds[j++];
                         pk.metadata = new EntityMetadata()
                                 .putString(Entity.DATA_NAMETAG, line);
 
