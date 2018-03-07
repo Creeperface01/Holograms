@@ -6,7 +6,6 @@ import cn.nukkit.level.Level;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.network.protocol.AddPlayerPacket;
-import cn.nukkit.utils.MainLogger;
 import gt.creeperface.holograms.Hologram;
 import gt.creeperface.holograms.Hologram.EntityEntry;
 import gt.creeperface.holograms.Holograms;

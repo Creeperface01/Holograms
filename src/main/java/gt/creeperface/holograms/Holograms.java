@@ -14,7 +14,6 @@ import cn.nukkit.permission.Permission;
 import cn.nukkit.scheduler.Task;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.ConfigSection;
-import cn.nukkit.utils.MainLogger;
 import com.google.common.base.Preconditions;
 import gt.creeperface.holograms.api.HologramAPI;
 import gt.creeperface.holograms.command.HologramCommand;
@@ -185,7 +184,7 @@ public class Holograms extends HologramAPI implements Listener {
     }
 
     private void checkLineCount(List<List<String>> trans, String hologramId) {
-        if(trans.size() <= 0) {
+        if (trans.size() <= 0) {
             return;
         }
 
@@ -195,15 +194,15 @@ public class Holograms extends HologramAPI implements Listener {
         for (List<String> t : trans) {
             int size = t.size();
 
-            if(size < min)
+            if (size < min)
                 min = size;
 
-            if(size > max)
+            if (size > max)
                 max = size;
         }
 
-        if(min != max) {
-            getLogger().warning("Detected different line count in hologram '"+hologramId+"', fixing...");
+        if (min != max) {
+            getLogger().warning("Detected different line count in hologram '" + hologramId + "', fixing...");
 
             for (List<String> t : trans) {
                 int diff = max - t.size();

@@ -4,7 +4,6 @@ import cn.nukkit.Player;
 import cn.nukkit.form.response.FormResponse;
 import cn.nukkit.form.response.FormResponseCustom;
 import cn.nukkit.form.response.FormResponseSimple;
-import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.TextFormat;
 import gt.creeperface.holograms.Holograms;
 import gt.creeperface.holograms.entity.HologramEntity;
@@ -29,7 +28,7 @@ public class FormWindowHandler {
             return;
         }
 
-        if(id >= Values.WINDOW_ID && id <= Values.TEXT_WINDOW_ID) {
+        if (id >= Values.WINDOW_ID && id <= Values.TEXT_WINDOW_ID) {
             HologramEntity entity = plugin.editors.get(p.getId());
 
             if (entity == null || entity.closed) {

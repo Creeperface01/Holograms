@@ -92,9 +92,9 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
         Map<Long, Map<String, String>> result = new HashMap<>();
 
         if (players != null && !players.isEmpty()) {
-            playerPlaceHolders.forEach((k, v) -> players.forEach((p) ->{
+            playerPlaceHolders.forEach((k, v) -> players.forEach((p) -> {
                 Map<String, String> m = result.get(p.getId());
-                if(m == null) {
+                if (m == null) {
                     m = new HashMap<>();
                     result.put(p.getId(), m);
                 }
@@ -218,7 +218,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     }
 
     public void updatePlaceHolder(String placeholder, Player... players) {
-        if(players.length == 0) {
+        if (players.length == 0) {
 
         }
     }

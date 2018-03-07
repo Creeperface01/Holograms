@@ -22,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 /**
  * @author CreeperFace
@@ -112,8 +111,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                     MovePlayerPacket[] packets = movePackets.stream().toArray(MovePlayerPacket[]::new);
                     Player[] players = entry.players.stream().toArray(Player[]::new);
 
-                    for(MovePlayerPacket pk : packets) {
-                        MainLogger.getLogger().info("X: "+pk.x+"  Y: "+pk.y+"   Z:"+pk.z);
+                    for (MovePlayerPacket pk : packets) {
+                        MainLogger.getLogger().info("X: " + pk.x + "  Y: " + pk.y + "   Z:" + pk.z);
                     }
 
                     this.sendPackets(packets, players);
@@ -649,7 +648,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                     p.dataPacket(batch);
                 }
             });
-        } catch(Exception e) {
+        } catch (Exception e) {
             MainLogger.getLogger().logException(e);
         }
     }
