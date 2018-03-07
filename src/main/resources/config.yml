@@ -1,7 +1,7 @@
 #don't change this
 version: 1
 
-#gap between separate lines
+#distance between separate lines
 lines_gaps: 0.3
 
 #if hologram packets should be compressed asynchronously

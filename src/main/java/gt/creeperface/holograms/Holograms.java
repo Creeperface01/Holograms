@@ -92,7 +92,7 @@ public class Holograms extends HologramAPI implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
         getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
             saveHolograms(true);
-        }, this.configuration.getSaveInterval(), this.configuration.getSaveInterval());
+        }, this.configuration.getSaveInterval() * 60 * 20, this.configuration.getSaveInterval() * 60 * 20);
 
         getServer().getScheduler().scheduleRepeatingTask(this, new Task() {
             @Override
