@@ -1,0 +1,11 @@
+#don't change this
+version: 1
+
+#gap between separate lines
+lines_gaps: 0.3
+
+#if hologram packets should be compressed asynchronously
+async_batch: false
+
+#how often should be holograms saved to config (in minutes)
+save_interval: 5

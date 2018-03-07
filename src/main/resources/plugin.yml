@@ -1,0 +1,7 @@
+name: Holograms
+version: 2.0
+api: ["1.0.0"]
+main: gt.creeperface.holograms.Holograms
+description: Holograms plugin
+author: CreeperFace
+load: STARTUP
