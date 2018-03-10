@@ -5,15 +5,11 @@ import cn.nukkit.entity.Entity;
 import cn.nukkit.level.Level;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.nbt.tag.CompoundTag;
-import cn.nukkit.network.protocol.AddPlayerPacket;
 import gt.creeperface.holograms.Hologram;
 import gt.creeperface.holograms.Hologram.EntityEntry;
 import gt.creeperface.holograms.Holograms;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author CreeperFace
@@ -32,8 +28,6 @@ public class HologramEntity extends Entity {
     @Getter
     @Setter
     private EntityEntry entityEntry;
-
-    private List<AddPlayerPacket[]> cachedPackets = new ArrayList<>();
 
     public HologramEntity(FullChunk chunk, CompoundTag nbt) {
         super(chunk, nbt);

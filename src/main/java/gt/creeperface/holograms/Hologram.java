@@ -31,12 +31,6 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     private final Map<String, Function<Player, String>> playerPlaceHolders = new HashMap<>();
 
     @Getter
-    private final List<List<AddPlayerPacket>> cachedPackets = new ArrayList<>();
-
-    @Getter
-    private final List<RemoveEntityPacket> cachedRemovePackets = new ArrayList<>();
-
-    @Getter
     private final String name;
 
     @Getter
