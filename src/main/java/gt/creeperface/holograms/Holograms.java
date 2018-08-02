@@ -9,26 +9,24 @@ import cn.nukkit.event.player.PlayerFormRespondedEvent;
 import cn.nukkit.event.player.PlayerQuitEvent;
 import cn.nukkit.form.response.FormResponse;
 import cn.nukkit.level.Level;
-import cn.nukkit.math.NukkitMath;
 import cn.nukkit.permission.Permission;
 import cn.nukkit.scheduler.Task;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.ConfigSection;
-import com.google.common.base.Preconditions;
 import gt.creeperface.holograms.api.HologramAPI;
 import gt.creeperface.holograms.command.HologramCommand;
 import gt.creeperface.holograms.entity.HologramEntity;
 import gt.creeperface.holograms.form.FormWindowHandler;
 import gt.creeperface.holograms.form.FormWindowManager;
+import gt.creeperface.holograms.placeholder.DefaultPlaceholderAdapter;
+import gt.creeperface.holograms.placeholder.PlaceholderAPIAdapter;
+import gt.creeperface.holograms.placeholder.PlaceholderAdapter;
 import gt.creeperface.holograms.task.HologramUpdater;
 import lombok.Getter;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -53,15 +51,13 @@ public class Holograms extends HologramAPI implements Listener {
     @Getter
     private final FormWindowHandler handler = new FormWindowHandler(this);
 
-    private Function<Player, Integer> languageSelector;
-
     protected final HologramUpdater hologramUpdater = new HologramUpdater(this);
-
-    protected final Map<String, Supplier<String>> placeholders = new HashMap<>();
-    protected final Map<String, Function<Player, String>> playerPlaceholders = new HashMap<>();
 
     @Getter
     private HologramConfiguration configuration;
+
+    @Getter
+    private PlaceholderAdapter placeholderAdapter;
 
     @Override
     public void onLoad() {
@@ -69,17 +65,11 @@ public class Holograms extends HologramAPI implements Listener {
         instance = this;
         HologramAPI.instance = this;
 
-        languageSelector = (p) -> 0;
-
-        initDefaultPlaceholders();
-
         saveDefaultConfig();
         this.configuration = new HologramConfiguration(this);
 
         saveResource("holograms.yml");
         path = new File(getDataFolder(), "holograms.yml");
-
-        reloadHolograms();
 
         hologramUpdater.start();
     }
@@ -107,7 +97,10 @@ public class Holograms extends HologramAPI implements Listener {
             }
         }, 1);
 
-        reloadPlaceholders();
+        initPlaceholderAdapter();
+        reloadHolograms();
+
+
     }
 
     @Override
@@ -179,8 +172,6 @@ public class Holograms extends HologramAPI implements Listener {
         synchronized (hologramLock) {
             this.holograms = map;
         }
-
-        reloadPlaceholders();
     }
 
     private void checkLineCount(List<List<String>> trans, String hologramId) {
@@ -244,29 +235,7 @@ public class Holograms extends HologramAPI implements Listener {
             this.holograms = map;
         }
 
-        reloadPlaceholders();
-
         saveHolograms(false);
-    }
-
-    public void addPlaceHolder(final String string, final Supplier<String> replacement) {
-        this.placeholders.put(string, replacement);
-    }
-
-    public void addPlaceHolder(final String string, final Function<Player, String> replacement) {
-        this.playerPlaceholders.put(string, replacement);
-    }
-
-    public void removePlaceHolder(final String placeHolder) {
-        placeholders.remove(placeHolder);
-        playerPlaceholders.remove(placeHolder);
-    }
-
-    /**
-     * should be called when any placeholder is added, removed or replaced with another one by plugin
-     */
-    public void reloadPlaceholders() {
-        this.holograms.values().forEach(Hologram::reloadActivePlaceholders);
     }
 
     @EventHandler
@@ -290,12 +259,12 @@ public class Holograms extends HologramAPI implements Listener {
      *
      * @param p player which has changed their language
      */
-    public void onLanguageChanged(Player p) {
+    private void onLanguageChanged(Player p) {
         for (Entity entity : p.getLevel().getEntities()) {
             if (entity instanceof HologramEntity && entity.getViewers().containsKey(p.getLoaderId())) {
                 HologramEntity hologramEntity = (HologramEntity) entity;
 
-                this.hologramUpdater.update(hologramEntity.getHologram(), hologramEntity.getHologram().getRawTranslations(), Arrays.asList(hologramEntity.getEntityEntry()), false, p);
+                this.hologramUpdater.update(hologramEntity.getHologram(), hologramEntity.getHologram().getRawTranslations(), Collections.singletonList(hologramEntity.getEntityEntry()), false, p);
             }
         }
     }
@@ -324,9 +293,9 @@ public class Holograms extends HologramAPI implements Listener {
 
         for (Entity find : center.getLevel().getEntities()) {
             if (find instanceof HologramEntity) {
-                double dist = Long.MAX_VALUE;
+                double dist = center.distanceSquared(find);
 
-                if (near == null || (dist = center.distance(find)) < distance) {
+                if (near == null || dist < distance) {
                     distance = dist;
                     near = find;
                 }
@@ -336,20 +305,11 @@ public class Holograms extends HologramAPI implements Listener {
         return (HologramEntity) near;
     }
 
-    public void setLanguageSelector(Function<Player, Integer> languageSelector) {
-        Preconditions.checkNotNull(languageSelector, "Language selector cannot be set to null");
-        this.languageSelector = languageSelector;
-    }
-
-    public int getLanguage(Player p) {
-        return languageSelector.apply(p);
-    }
-
     public Hologram getHologram(String id) {
         return holograms.get(id);
     }
 
-    public Collection<HologramEntity> getEntitiesByHologram(String hologram) {
+    private Collection<HologramEntity> getEntitiesByHologram(String hologram) {
         List<HologramEntity> entities = new ArrayList<>();
 
         for (Level level : getServer().getLevels().values()) {
@@ -367,26 +327,6 @@ public class Holograms extends HologramAPI implements Listener {
         return entities;
     }
 
-    private void initDefaultPlaceholders() {
-        placeholders.put("%players", () -> Integer.toString(getServer().getOnlinePlayers().size()));
-        placeholders.put("%tps%", () -> Double.toString(NukkitMath.round(getServer().getTicksPerSecond(), 1)));
-        placeholders.put("%memory%", () -> {
-            Runtime runtime = Runtime.getRuntime();
-
-            return "" + ((runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024);
-        });
-        placeholders.put("%maxmemory%", () -> "" + (Runtime.getRuntime().totalMemory() / 1024 / 1024));
-
-        this.placeholders.put("%time%", () ->
-                new SimpleDateFormat("HH:mm:ss").format(new Date())
-        );
-
-        //player related placeholders
-        playerPlaceholders.put("%player%", Player::getName);
-        playerPlaceholders.put("%dplayer%", Player::getDisplayName);
-        playerPlaceholders.put("%ping%", (p) -> p.isOnline() ? "" + p.getPing() : "-1");
-    }
-
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, gt.creeperface.holograms.api.Hologram> getHolograms() {
@@ -395,5 +335,14 @@ public class Holograms extends HologramAPI implements Listener {
 
     public Map<String, Hologram> getInternalHolograms() {
         return this.holograms;
+    }
+
+    private void initPlaceholderAdapter() {
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            this.placeholderAdapter = new PlaceholderAPIAdapter();
+            return;
+        }
+
+        this.placeholderAdapter = new DefaultPlaceholderAdapter();
     }
 }

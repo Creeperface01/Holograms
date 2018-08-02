@@ -3,6 +3,7 @@ package gt.creeperface.holograms.command;
 import cn.nukkit.Player;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.data.CommandParamType;
 import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.nbt.tag.CompoundTag;
 import cn.nukkit.nbt.tag.DoubleTag;
@@ -32,7 +33,7 @@ public class HologramCommand extends Command {
         this.commandParameters.clear();
         this.commandParameters.put("default",
                 new CommandParameter[]{
-                        new CommandParameter("hologram id", CommandParameter.ARG_TYPE_STRING, false)
+                        new CommandParameter("hologram id", CommandParamType.STRING, false)
                 });
         this.commandParameters.put("remove",
                 new CommandParameter[]{

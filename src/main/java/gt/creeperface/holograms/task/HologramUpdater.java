@@ -5,6 +5,7 @@ import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.entity.Entity;
 import cn.nukkit.entity.data.EntityMetadata;
+import cn.nukkit.entity.item.EntityItem;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.network.protocol.*;
 import cn.nukkit.utils.Binary;
@@ -15,7 +16,7 @@ import gt.creeperface.holograms.Hologram;
 import gt.creeperface.holograms.Hologram.EntityEntry;
 import gt.creeperface.holograms.HologramConfiguration;
 import gt.creeperface.holograms.Holograms;
-import gt.creeperface.holograms.util.Values;
+import gt.creeperface.holograms.entity.data.EntityData;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
     private final Deque<UpdateEntry> updateQueue = new ArrayDeque<>();
     private final Deque<MoveEntry> moveQueue = new ArrayDeque<>();
 
-    private static final EntityMetadata globalData = new EntityMetadata()
+    private static final EntityData globalData = (EntityData) new EntityData()
             .putLong(Entity.DATA_FLAGS, (
                     (1L << Entity.DATA_FLAG_CAN_SHOW_NAMETAG) |
                             (1L << Entity.DATA_FLAG_ALWAYS_SHOW_NAMETAG) |
@@ -43,7 +44,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             .putFloat(Entity.DATA_BOUNDING_BOX_HEIGHT, 0)
             .putFloat(Entity.DATA_BOUNDING_BOX_WIDTH, 0)
             .putFloat(Entity.DATA_SCALE, 0)
-            .putLong(Entity.DATA_LEAD_HOLDER_EID, -1);
+            .putLong(Entity.DATA_LEAD_HOLDER_EID, -1)
+            .putByte(Entity.DATA_ALWAYS_SHOW_NAMETAG, 1);
 
     public HologramUpdater(Holograms plugin) {
         this.plugin = plugin;
@@ -111,9 +113,9 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                     MovePlayerPacket[] packets = movePackets.stream().toArray(MovePlayerPacket[]::new);
                     Player[] players = entry.players.stream().toArray(Player[]::new);
 
-                    for (MovePlayerPacket pk : packets) {
-                        MainLogger.getLogger().info("X: " + pk.x + "  Y: " + pk.y + "   Z:" + pk.z);
-                    }
+//                    for (MovePlayerPacket pk : packets) {
+//                        MainLogger.getLogger().info("X: " + pk.x + "  Y: " + pk.y + "   Z:" + pk.z);
+//                    }
 
                     this.sendPackets(packets, players);
                 }
@@ -162,7 +164,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             Vector3 pos = entityEntry.getSafePos();
             long[] reservedIds = updateEntry.entityIds[entityCount++];
 
-            List<List<AddPlayerPacket>> cachedPackets = new ArrayList<>();
+            List<List<AddEntityPacket>> cachedPackets = new ArrayList<>();
             List<RemoveEntityPacket> cachedRemovePackets = new ArrayList<>();
 
             if (updateEntry.spawn)
@@ -350,8 +352,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 
                 for (DataPacket pk : packetEntry.addPackets) {
                     long id;
-                    if (pk instanceof AddPlayerPacket) {
-                        id = ((AddPlayerPacket) pk).entityRuntimeId;
+                    if (pk instanceof AddEntityPacket) {
+                        id = ((AddEntityPacket) pk).entityRuntimeId;
                     } else if (pk instanceof SetEntityDataPacket) {
                         id = ((SetEntityDataPacket) pk).eid;
                     } else
@@ -471,7 +473,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 
         for (String origin : translation) {
             for (Entry<String, String> replaceEntry : placeHolders.entrySet()) {
-                origin = origin.replaceAll(replaceEntry.getKey(), replaceEntry.getValue());
+                origin = origin.replaceAll("%" + replaceEntry.getKey() + "%", replaceEntry.getValue());
             }
 
             replaced.add(origin);
@@ -480,10 +482,10 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         return replaced;
     }
 
-    private List<AddPlayerPacket> compile(List<String> lines, Vector3 pos, long[] entitiyIds, boolean spawn) {
+    private List<AddEntityPacket> compile(List<String> lines, Vector3 pos, long[] entitiyIds, boolean spawn) {
         float baseY = (float) pos.y;
 
-        List<AddPlayerPacket> packets = new ArrayList<>();
+        List<AddEntityPacket> packets = new ArrayList<>();
         if (lines.isEmpty()) {
             return packets;
         }
@@ -499,10 +501,10 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 
             long id = entitiyIds[i++];
 
-            AddPlayerPacket pk = new AddPlayerPacket();
+            AddEntityPacket pk = new AddEntityPacket();
             pk.entityUniqueId = id;
             pk.entityRuntimeId = id;
-            pk.item = Values.AIR;
+            pk.type = EntityItem.NETWORK_ID;
             pk.x = (float) pos.x;
             pk.y = baseY;
             pk.z = (float) pos.z;
@@ -510,10 +512,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             pk.speedY = 0;
             pk.speedZ = 0;
             pk.yaw = 0;
-            pk.username = line;
             pk.pitch = 0;
-            pk.metadata = globalData;
-            pk.uuid = UUID.randomUUID();
+            pk.metadata = globalData.clone().putString(Entity.DATA_NAMETAG, line);
 
             pk.encode();
             pk.isEncoded = true;
@@ -594,7 +594,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         List<PlayerEntry> playersData = new ArrayList<>();
 
         for (Player p : players) {
-            playersData.add(new PlayerEntry(p, plugin.getLanguage(p)));
+            playersData.add(new PlayerEntry(p, plugin.getPlaceholderAdapter().getLanguage(p)));
         }
 
         synchronized (updateQueue) {

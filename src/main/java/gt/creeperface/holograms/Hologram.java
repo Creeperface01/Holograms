@@ -4,17 +4,15 @@ import cn.nukkit.Player;
 import cn.nukkit.Server;
 import cn.nukkit.entity.Entity;
 import cn.nukkit.math.Vector3;
-import cn.nukkit.network.protocol.AddPlayerPacket;
+import cn.nukkit.network.protocol.AddEntityPacket;
 import cn.nukkit.network.protocol.RemoveEntityPacket;
+import com.creeperface.nukkit.placeholderapi.api.util.MatchedGroup;
 import gt.creeperface.holograms.entity.HologramEntity;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 import java.util.*;
-import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -27,8 +25,12 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     private final List<HologramTranslation> translations = new ArrayList<>();
     //private final List<HologramPage> pages = new ArrayList<>();
 
-    private final Map<String, Supplier<String>> placeHolders = new HashMap<>();
-    private final Map<String, Function<Player, String>> playerPlaceHolders = new HashMap<>();
+    private final List<MatchedGroup> placeholderMap = new ArrayList<>();
+
+    private final Set<String> placeholders = new HashSet<>();
+
+    @Getter
+    private boolean visitorSensitive;
 
     @Getter
     private final String name;
@@ -37,11 +39,15 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     private int updateInterval = -1;
 
     public Hologram(final String name, final List<List<String>> pages) {
+        this.name = name;
+
         for (List<String> trans : pages) {
-            this.translations.add(new HologramTranslation(trans));
+            HologramTranslation translation = new HologramTranslation(trans);
+
+            this.translations.add(translation);
         }
 
-        this.name = name;
+        this.reloadActivePlaceholders();
     }
 
     public List<List<String>> getRawTranslations() {
@@ -70,12 +76,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     }
 
     public Map<String, String> updatePlaceholders() {
-        Map<String, String> result = new HashMap<>();
-
-        placeHolders.forEach((k, v) -> result.put(k, v.get()));
-        //Holograms.getInstance().placeholders.forEach((k, v) -> result.put(k, v.get()));
-
-        return result;
+        return Holograms.getInstance().getPlaceholderAdapter().translatePlaceholders(this.placeholders);
     }
 
     public Map<Long, Map<String, String>> updatePlayerPlaceholders(Entity entity) {
@@ -83,21 +84,11 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     }
 
     public Map<Long, Map<String, String>> updatePlayerPlaceholders(final Collection<Player> players) {
-        Map<Long, Map<String, String>> result = new HashMap<>();
-
-        if (players != null && !players.isEmpty()) {
-            playerPlaceHolders.forEach((k, v) -> players.forEach((p) -> {
-                Map<String, String> m = result.get(p.getId());
-                if (m == null) {
-                    m = new HashMap<>();
-                    result.put(p.getId(), m);
-                }
-
-                m.put(k, v.apply(p));
-            }));
+        if (!isVisitorSensitive()) {
+            return new HashMap<>();
         }
 
-        return result;
+        return Holograms.getInstance().getPlaceholderAdapter().translatePlaceholders(this.placeholders, players);
     }
 
     public void addEntity(HologramEntity entity) {
@@ -116,7 +107,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     }
 
     public void spawnEntity(HologramEntity entity, Player... players) {
-        Holograms.getInstance().hologramUpdater.update(entity.getHologram(), null, Arrays.asList(entity.getEntityEntry()), true, players);
+        Holograms.getInstance().hologramUpdater.update(entity.getHologram(), null, Collections.singletonList(entity.getEntityEntry()), true, players);
     }
 
     public void despawnEntity(HologramEntity entity, Player... players) {
@@ -124,7 +115,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
 
         synchronized (entry.removePackets) {
             if (!entry.removePackets.isEmpty()) { //shouldn't this be async too?
-                Server.getInstance().batchPackets(players, entry.removePackets.stream().toArray(RemoveEntityPacket[]::new));
+                Server.getInstance().batchPackets(players, entry.removePackets.toArray(new RemoveEntityPacket[0]));
             }
         }
     }
@@ -132,10 +123,6 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     public void updatePos(HologramEntity entity) {
         EntityEntry entry = entity.getEntityEntry();
         Holograms.getInstance().hologramUpdater.updatePos(entry, new Vector3(entity.x, entity.y, entity.z));
-    }
-
-    public boolean isVisitorSensitive() {
-        return !playerPlaceHolders.isEmpty();
     }
 
     public void update(List<List<String>> translations) {
@@ -172,38 +159,14 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     }
 
     public void reloadActivePlaceholders() {
-        this.playerPlaceHolders.clear();
-        this.placeHolders.clear();
+        this.placeholders.clear();
 
-        Holograms plugin = Holograms.getInstance();
+        this.translations.forEach(tr -> {
+            tr.mapPlaceholders();
+            this.placeholders.addAll(tr.getPlaceholders());
+        });
 
-        for (Entry<String, Supplier<String>> entry : plugin.placeholders.entrySet()) {
-            String key = entry.getKey();
-
-            transloop:
-            for (HologramTranslation t : this.translations) {
-                for (String l : t.getLines()) {
-                    if (l.contains(key)) {
-                        this.placeHolders.put(key, entry.getValue());
-                        break transloop;
-                    }
-                }
-            }
-        }
-
-        for (Entry<String, Function<Player, String>> entry : plugin.playerPlaceholders.entrySet()) {
-            String key = entry.getKey();
-
-            transloop:
-            for (HologramTranslation t : this.translations) {
-                for (String l : t.getLines()) {
-                    if (l.contains(key)) {
-                        this.playerPlaceHolders.put(key, entry.getValue());
-                        break transloop;
-                    }
-                }
-            }
-        }
+        this.visitorSensitive = Holograms.getInstance().getPlaceholderAdapter().containsVisitorSensitivePlaceholder(this.placeholders);
     }
 
     @Override
@@ -226,11 +189,11 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
         @Setter
         private Vector3 safePos;
 
-        private final List<List<AddPlayerPacket>> packets = new ArrayList<>();
+        private final List<List<AddEntityPacket>> packets = new ArrayList<>();
 
         private final List<RemoveEntityPacket> removePackets = new ArrayList<>();
 
-        public void cachePackets(List<List<AddPlayerPacket>> packets) {
+        public void cachePackets(List<List<AddEntityPacket>> packets) {
             clearCachedPackets();
             this.packets.addAll(packets);
         }
@@ -252,7 +215,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
             }
         }
 
-        public List<List<AddPlayerPacket>> getPackets() {
+        public List<List<AddEntityPacket>> getPackets() {
             return new ArrayList<>(packets);
         }
 
