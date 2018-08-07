@@ -3,6 +3,7 @@ package gt.creeperface.holograms.placeholder;
 import cn.nukkit.Player;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -12,7 +13,7 @@ public class DefaultPlaceholderAdapter implements PlaceholderAdapter {
 
     @Override
     public Map<String, String> translatePlaceholders(Collection<String> placeholders) {
-        return null;
+        return new HashMap<>();
     }
 
     /**
@@ -20,7 +21,7 @@ public class DefaultPlaceholderAdapter implements PlaceholderAdapter {
      */
     @Override
     public Map<Long, Map<String, String>> translatePlaceholders(Collection<String> placeholders, Collection<Player> players) {
-        return null;
+        return new HashMap<>();
     }
 
     @Override
