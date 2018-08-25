@@ -160,7 +160,7 @@ public class HologramEntity extends Entity {
     @Override
     public void spawnToAll() {
         if (this.chunk != null && !this.closed) {
-            Player[] players = this.level.getChunkPlayers(this.chunk.getX(), this.chunk.getZ()).values().stream().toArray(Player[]::new);
+            Player[] players = this.level.getChunkPlayers(this.chunk.getX(), this.chunk.getZ()).values().toArray(new Player[0]);
 
             this.hologram.spawnEntity(this, players);
 
@@ -193,7 +193,7 @@ public class HologramEntity extends Entity {
     @Override
     public void despawnFromAll() {
         if (this.hologram != null) {
-            Player[] players = this.hasSpawned.values().stream().toArray(Player[]::new);
+            Player[] players = this.hasSpawned.values().toArray(new Player[0]);
 
             this.hologram.despawnEntity(this, players);
         }

@@ -3,9 +3,9 @@ package gt.creeperface.holograms.task;
 import cn.nukkit.InterruptibleThread;
 import cn.nukkit.Player;
 import cn.nukkit.Server;
+import cn.nukkit.entity.Attribute;
 import cn.nukkit.entity.Entity;
 import cn.nukkit.entity.data.EntityMetadata;
-import cn.nukkit.entity.item.EntityItem;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.network.protocol.*;
 import cn.nukkit.utils.Binary;
@@ -39,11 +39,14 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             .putLong(Entity.DATA_FLAGS, (
                     (1L << Entity.DATA_FLAG_CAN_SHOW_NAMETAG) |
                             (1L << Entity.DATA_FLAG_ALWAYS_SHOW_NAMETAG) |
-                            (1L << Entity.DATA_FLAG_IMMOBILE)
+                            (1L << Entity.DATA_FLAG_IMMOBILE) |
+                            (1L << Entity.DATA_FLAG_SILENT)
+//                            (1L << Entity.DATA_FLAG_INVISIBLE)
             ))
             .putFloat(Entity.DATA_BOUNDING_BOX_HEIGHT, 0)
             .putFloat(Entity.DATA_BOUNDING_BOX_WIDTH, 0)
             .putFloat(Entity.DATA_SCALE, 0)
+            .putFloat(Entity.DATA_HEALTH, 100)
             .putLong(Entity.DATA_LEAD_HOLDER_EID, -1)
             .putByte(Entity.DATA_ALWAYS_SHOW_NAMETAG, 1);
 
@@ -504,7 +507,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             AddEntityPacket pk = new AddEntityPacket();
             pk.entityUniqueId = id;
             pk.entityRuntimeId = id;
-            pk.type = EntityItem.NETWORK_ID;
+            pk.type = 61;
             pk.x = (float) pos.x;
             pk.y = baseY;
             pk.z = (float) pos.z;
@@ -514,6 +517,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             pk.yaw = 0;
             pk.pitch = 0;
             pk.metadata = globalData.clone().putString(Entity.DATA_NAMETAG, line);
+            pk.attributes = new Attribute[]{Attribute.getAttribute(Attribute.MAX_HEALTH).setValue(100)};
 
             pk.encode();
             pk.isEncoded = true;
