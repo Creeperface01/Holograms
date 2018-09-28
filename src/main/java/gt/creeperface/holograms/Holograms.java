@@ -259,7 +259,7 @@ public class Holograms extends HologramAPI implements Listener {
      *
      * @param p player which has changed their language
      */
-    private void onLanguageChanged(Player p) {
+    public void onLanguageChanged(Player p) {
         for (Entity entity : p.getLevel().getEntities()) {
             if (entity instanceof HologramEntity && entity.getViewers().containsKey(p.getLoaderId())) {
                 HologramEntity hologramEntity = (HologramEntity) entity;
