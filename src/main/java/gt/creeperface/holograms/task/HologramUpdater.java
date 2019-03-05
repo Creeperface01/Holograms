@@ -92,14 +92,14 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                         entry = moveQueue.poll();
                     }
 
-                    List<MoveEntityPacket> movePackets = new ArrayList<>();
+                    List<MoveEntityAbsolutePacket> movePackets = new ArrayList<>();
                     Vector3 pos = entry.pos;
                     double baseY = 0;
 
                     List<RemoveEntityPacket> reps = entry.entityEntry.getRemovePackets();
 
                     for (RemoveEntityPacket rep : reps) {
-                        MoveEntityPacket pk = new MoveEntityPacket();
+                        MoveEntityAbsolutePacket pk = new MoveEntityAbsolutePacket();
                         pk.eid = rep.eid;
                         pk.x = (float) pos.x;
                         pk.y = (float) (pos.y + baseY);
@@ -115,7 +115,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                         baseY += HologramConfiguration.getLineGap();
                     }
 
-                    MoveEntityPacket[] packets = movePackets.toArray(new MoveEntityPacket[0]);
+                    MoveEntityAbsolutePacket[] packets = movePackets.toArray(new MoveEntityAbsolutePacket[0]);
                     Player[] players = entry.players.toArray(new Player[0]);
 
 //                    for (MovePlayerPacket pk : packets) {

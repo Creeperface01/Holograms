@@ -1,8 +1,6 @@
 package gt.creeperface.holograms.api.grid;
 
-import it.unimi.dsi.fastutil.chars.Char2ByteMap;
-import it.unimi.dsi.fastutil.chars.Char2ByteOpenHashMap;
-
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -13,10 +11,9 @@ public final class CharactersTable {
     private CharactersTable() {
     }
 
-    private static final Char2ByteMap charMap = new Char2ByteOpenHashMap(6);
+    private static final Map<Character, Byte> charMap = new HashMap<>();
 
     static {
-        charMap.defaultReturnValue((byte) 6);
 
         byte[] charLengths = new byte[]{
                 4, 2, 5, 6, 6, 6, 6, 3, 5, 5, 5, 6, 2, 6, 2, 6,
@@ -39,10 +36,6 @@ public final class CharactersTable {
     }
 
     public static void register(Map<Character, Byte> map) {
-        charMap.putAll(map);
-    }
-
-    public static void register(Char2ByteMap map) {
         charMap.putAll(map);
     }
 
