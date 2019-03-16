@@ -5,6 +5,7 @@ import cn.nukkit.form.response.FormResponse;
 import cn.nukkit.form.response.FormResponseCustom;
 import cn.nukkit.form.response.FormResponseSimple;
 import cn.nukkit.utils.TextFormat;
+import gt.creeperface.holograms.Hologram;
 import gt.creeperface.holograms.Holograms;
 import gt.creeperface.holograms.entity.HologramEntity;
 import gt.creeperface.holograms.util.Values;
@@ -102,6 +103,19 @@ public class FormWindowHandler {
         int updateInterval = getInt(response.getInputResponse(11), entity.getHologram().getUpdateInterval());
         entity.getHologram().setUpdateInterval(updateInterval);
 
+        boolean grid = response.getToggleResponse(13);
+        int gridColSpace = getInt(response.getInputResponse(14), 20);
+        String gridSource = response.getInputResponse(15);
+        boolean gridHeader = response.getToggleResponse(16);
+
+        Hologram.GridSettings gridSettings = entity.getHologram().getGridSettings();
+
+        boolean gridUpdate = gridSettings.setEnabled(grid);
+        boolean gridSpaceUpdate = gridSettings.setGridColSpace(gridColSpace);
+
+        boolean gridSourceUpdate = gridSettings.setGridSource(plugin.getGridSource(gridSource));
+        boolean gridHeaderUpdate = gridSettings.setHeader(gridHeader);
+
         if (remove) {
             entity.close();
             p.sendMessage(TextFormat.GREEN + "Hologram removed");
@@ -118,6 +132,10 @@ public class FormWindowHandler {
             entity.offsetTo(offsetX, offsetY, offsetZ);
             p.sendMessage(TextFormat.GREEN + "Hologram moved");
             plugin.editors.remove(p.getId());
+        }
+
+        if (gridUpdate || gridSpaceUpdate || gridSourceUpdate || gridHeaderUpdate) {
+            entity.getHologram().update();
         }
     }
 

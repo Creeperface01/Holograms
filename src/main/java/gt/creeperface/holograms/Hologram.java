@@ -6,11 +6,10 @@ import cn.nukkit.entity.Entity;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.network.protocol.AddEntityPacket;
 import cn.nukkit.network.protocol.RemoveEntityPacket;
-import com.creeperface.nukkit.placeholderapi.api.util.MatchedGroup;
+import gt.creeperface.holograms.api.grid.source.GridSource;
+import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 import gt.creeperface.holograms.entity.HologramEntity;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,7 +24,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     private final List<HologramTranslation> translations = new ArrayList<>();
     //private final List<HologramPage> pages = new ArrayList<>();
 
-    private final List<MatchedGroup> placeholderMap = new ArrayList<>();
+//    private final List<PlaceholderAdapter.MatchedPlaceholder> placeholderMap = new ArrayList<>();
 
     private final Set<String> placeholders = new HashSet<>();
 
@@ -38,8 +37,12 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     @Getter
     private int updateInterval = -1;
 
-    public Hologram(final String name, final List<List<String>> pages) {
+    @Getter
+    private GridSettings gridSettings;
+
+    public Hologram(final String name, final List<List<String>> pages, GridSettings gridSettings) {
         this.name = name;
+        this.gridSettings = gridSettings;
 
         for (List<String> trans : pages) {
             HologramTranslation translation = new HologramTranslation(trans);
@@ -144,6 +147,10 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
         return new ArrayList<>(this.translations);
     }
 
+    public List<List<List<PlaceholderAdapter.MatchedPlaceholder>>> getTranslationPlaceholders() {
+        return this.translations.stream().map(HologramTranslation::getPlaceholders).collect(Collectors.toList());
+    }
+
     @Override
     public void setUpdateInterval(int updateInterval) {
         if (updateInterval == this.updateInterval)
@@ -163,7 +170,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
 
         this.translations.forEach(tr -> {
             tr.mapPlaceholders();
-            this.placeholders.addAll(tr.getPlaceholders());
+            this.placeholders.addAll(tr.getPlaceholderNames());
         });
 
         this.visitorSensitive = Holograms.getInstance().getPlaceholderAdapter().containsVisitorSensitivePlaceholder(this.placeholders);
@@ -172,12 +179,6 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     @Override
     public void update(Player... players) {
         Holograms.getInstance().hologramUpdater.update(this, getRawTranslations(), getEntities(), false, players);
-    }
-
-    public void updatePlaceHolder(String placeholder, Player... players) {
-        if (players.length == 0) {
-
-        }
     }
 
     @RequiredArgsConstructor
@@ -237,6 +238,63 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
         @Override
         public int hashCode() {
             return Long.hashCode(this.entity.getId());
+        }
+    }
+
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Getter
+    public static class GridSettings implements Cloneable {
+
+        private boolean enabled = false;
+        private GridSource source = null;
+        private int columnSpace = 20;
+        private boolean header = false;
+
+
+        public boolean setEnabled(boolean enabled) {
+            if (enabled == this.enabled) {
+                return false;
+            }
+
+            this.enabled = enabled;
+            return true;
+        }
+
+        public boolean setGridColSpace(int gridColSpace) {
+            if (columnSpace == gridColSpace) {
+                return false;
+            }
+
+            columnSpace = gridColSpace;
+            return true;
+        }
+
+        public boolean setGridSource(GridSource gridSource) {
+            if (Objects.equals(gridSource, source)) {
+                return false;
+            }
+
+            source = gridSource;
+            return true;
+        }
+
+        public boolean setHeader(boolean header) {
+            if (this.header == header) {
+                return false;
+            }
+
+            this.header = header;
+            return true;
+        }
+
+        @Override
+        public GridSettings clone() {
+            try {
+                return (GridSettings) super.clone();
+            } catch (CloneNotSupportedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

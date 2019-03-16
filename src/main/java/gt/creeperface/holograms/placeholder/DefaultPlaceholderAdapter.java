@@ -1,10 +1,9 @@
 package gt.creeperface.holograms.placeholder;
 
 import cn.nukkit.Player;
+import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author CreeperFace
@@ -30,7 +29,22 @@ public class DefaultPlaceholderAdapter implements PlaceholderAdapter {
     }
 
     @Override
+    public List<MatchedPlaceholder> matchPlaceholders(String text) {
+        return Collections.emptyList();
+    }
+
+    @Override
     public int getLanguage(Player p) {
         return 0;
+    }
+
+    @Override
+    public boolean supports() {
+        return false;
+    }
+
+    @Override
+    public Object getValue(String placeholder) {
+        return null;
     }
 }

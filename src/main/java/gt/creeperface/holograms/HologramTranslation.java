@@ -1,7 +1,7 @@
 package gt.creeperface.holograms;
 
 import com.creeperface.nukkit.placeholderapi.api.util.MatchedGroup;
-import gt.creeperface.holograms.util.Utils;
+import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,9 +17,11 @@ public class HologramTranslation implements gt.creeperface.holograms.api.Hologra
 
     private final List<String> lines;
 
-    //    private List<List<MatchedGroup>> placeholders;
     @Getter
-    private Set<String> placeholders = new HashSet<>();
+    private final List<List<PlaceholderAdapter.MatchedPlaceholder>> placeholders = new ArrayList<>();
+
+    @Getter
+    private final Set<String> placeholderNames = new HashSet<>();
 
     public String getLine(int index) {
         return lines.get(index);
@@ -56,9 +58,16 @@ public class HologramTranslation implements gt.creeperface.holograms.api.Hologra
 
     public void mapPlaceholders() {
         this.placeholders.clear();
+        this.placeholderNames.clear();
 
         for (String line : this.lines) {
-            this.placeholders.addAll(Utils.mapPlaceholders(line));
+            List<PlaceholderAdapter.MatchedPlaceholder> placeholders = Holograms.getInstance().getPlaceholderAdapter().matchPlaceholders(line);
+
+            for (PlaceholderAdapter.MatchedPlaceholder p : placeholders) {
+                this.placeholderNames.add(p.name);
+            }
+
+            this.placeholders.add(placeholders);
         }
     }
 

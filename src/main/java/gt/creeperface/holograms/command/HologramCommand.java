@@ -94,7 +94,7 @@ public class HologramCommand extends Command {
                                 .add(new FloatTag("1", (float) ((Player) sender).getPitch())))
                         .putString("hologramId", hologramId);
 
-                plugin.getInternalHolograms().putIfAbsent(hologramId, new Hologram(hologramId, new ArrayList<>()));
+                plugin.getInternalHolograms().putIfAbsent(hologramId, new Hologram(hologramId, new ArrayList<>(), new Hologram.GridSettings()));
 
                 entity = new HologramEntity(((Player) sender).chunk, nbt);
                 entity.spawnToAll();

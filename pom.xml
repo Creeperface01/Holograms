@@ -15,9 +15,9 @@
 
     <repositories>
         <repository>
-            <id>central</id>
-            <name>potestas-releases</name>
-            <url>https://repo.potestas.xyz/main</url>
+            <id>releases</id>
+            <name>nukkitx-releases</name>
+            <url>https://repo.nukkitx.com/release</url>
         </repository>
     </repositories>
 
@@ -38,7 +38,20 @@
         <dependency>
             <groupId>com.creeperface.nukkit.placeholderapi</groupId>
             <artifactId>PlaceholderAPI</artifactId>
-            <version>1.0</version>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ru.nukkit.dblib</groupId>
+            <artifactId>DbLib</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.nukkit</groupId>
+            <artifactId>nukkitgt</artifactId>
+            <version>0</version>
+            <optional>false</optional>
+            <scope>system</scope>
+            <systemPath>${basedir}/lib/nukkit.jar</systemPath>
         </dependency>
     </dependencies>
 

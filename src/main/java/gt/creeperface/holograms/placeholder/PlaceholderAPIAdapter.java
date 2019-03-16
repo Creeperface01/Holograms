@@ -4,7 +4,10 @@ import cn.nukkit.Player;
 import com.creeperface.nukkit.placeholderapi.PlaceholderAPIIml;
 import com.creeperface.nukkit.placeholderapi.api.Placeholder;
 import com.creeperface.nukkit.placeholderapi.api.PlaceholderAPI;
+import com.creeperface.nukkit.placeholderapi.api.util.MatchedGroup;
+import com.creeperface.nukkit.placeholderapi.api.util.UtilsKt;
 import gt.creeperface.holograms.Holograms;
+import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -61,8 +64,8 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
 
     @Override
     public boolean containsVisitorSensitivePlaceholder(Collection<String> placeholders) {
-        for (String placeholderString : placeholders) {
-            Placeholder placeholder = api.getPlaceholder(placeholderString);
+        for (String pl : placeholders) {
+            Placeholder placeholder = api.getPlaceholder(pl);
 
             if (placeholder != null && placeholder.isVisitorSensitive()) {
                 return true;
@@ -71,6 +74,19 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
 
         return false;
     }
+
+    @Override
+    public List<MatchedPlaceholder> matchPlaceholders(String text) {
+        return UtilsKt.matchPlaceholders(text).stream().map(MatchedPlaceholderLocal::new).collect(Collectors.toList());
+    }
+
+//    @Override
+//    @SuppressWarnings("unchecked")
+//    public String replaceString(String input, List<MatchedPlaceholder> matched) {
+//        List<MatchedPlaceholderLocal> local = (List) matched;
+//
+//        return null;
+//    }
 
     @Override
     public int getLanguage(Player p) {
@@ -89,5 +105,31 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
         }
 
         return 0;
+    }
+
+    @Override
+    public Object getValue(String placeholder) {
+        Placeholder p = api.getPlaceholder(placeholder);
+
+        if (p != null) {
+            return p.getDirectValue(null);
+        }
+
+        return null;
+    }
+
+    @Override
+    public boolean supports() {
+        return true;
+    }
+
+    public static class MatchedPlaceholderLocal extends MatchedPlaceholder {
+
+        private final MatchedGroup group;
+
+        public MatchedPlaceholderLocal(MatchedGroup matchedGroup) {
+            super(matchedGroup.getValue(), matchedGroup.getStart(), matchedGroup.getEnd());
+            this.group = matchedGroup;
+        }
     }
 }

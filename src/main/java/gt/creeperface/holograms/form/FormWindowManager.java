@@ -7,6 +7,7 @@ import cn.nukkit.form.element.ElementLabel;
 import cn.nukkit.form.element.ElementToggle;
 import cn.nukkit.form.window.FormWindowCustom;
 import cn.nukkit.form.window.FormWindowSimple;
+import gt.creeperface.holograms.Hologram;
 import gt.creeperface.holograms.Holograms;
 import gt.creeperface.holograms.entity.HologramEntity;
 import gt.creeperface.holograms.util.Values;
@@ -96,6 +97,14 @@ public class FormWindowManager {
         window.addElement(new ElementToggle("Remove hologram", false));
 
         window.addElement(new ElementInput("Autoupdate", "ticks", "" + entity.getHologram().getUpdateInterval()));
+
+        Hologram.GridSettings grid = entity.getHologram().getGridSettings();
+
+        window.addElement(new ElementLabel(""));
+        window.addElement(new ElementToggle("Display as grid", grid.isEnabled()));
+        window.addElement(new ElementInput("Space between columns", "value", grid.getColumnSpace() + ""));
+        window.addElement(new ElementInput("Grid data source", "identitifer", grid.getSource() != null ? grid.getSource().getIdentifier() : ""));
+        window.addElement(new ElementToggle("Add grid header", grid.isHeader()));
 
         p.showFormWindow(window, Values.GENERAL_WINDOW_ID);
     }

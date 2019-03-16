@@ -5,4 +5,5 @@ main: gt.creeperface.holograms.Holograms
 description: Holograms plugin
 author: CreeperFace
 load: STARTUP
+depend: ["DbLib"]
 softdepend: ["PlaceholderAPI"]

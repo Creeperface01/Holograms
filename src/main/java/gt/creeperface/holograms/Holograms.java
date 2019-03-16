@@ -2,6 +2,7 @@ package gt.creeperface.holograms;
 
 
 import cn.nukkit.Player;
+import cn.nukkit.Server;
 import cn.nukkit.entity.Entity;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
@@ -13,20 +14,33 @@ import cn.nukkit.permission.Permission;
 import cn.nukkit.scheduler.Task;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.ConfigSection;
+import cn.nukkit.utils.MainLogger;
 import gt.creeperface.holograms.api.HologramAPI;
+import gt.creeperface.holograms.api.grid.source.GridSource;
+import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 import gt.creeperface.holograms.command.HologramCommand;
+import gt.creeperface.holograms.compatibility.network.PacketManager;
 import gt.creeperface.holograms.entity.HologramEntity;
 import gt.creeperface.holograms.form.FormWindowHandler;
 import gt.creeperface.holograms.form.FormWindowManager;
+import gt.creeperface.holograms.grid.CharactersTable;
+import gt.creeperface.holograms.grid.source.AbstractGridSource;
+import gt.creeperface.holograms.grid.source.ExampleGridSource;
+import gt.creeperface.holograms.grid.source.MySQLGridSource;
+import gt.creeperface.holograms.grid.source.PlaceholderGridSource;
 import gt.creeperface.holograms.placeholder.DefaultPlaceholderAdapter;
 import gt.creeperface.holograms.placeholder.PlaceholderAPIAdapter;
-import gt.creeperface.holograms.placeholder.PlaceholderAdapter;
 import gt.creeperface.holograms.task.HologramUpdater;
 import lombok.Getter;
 
 import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Parameter;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -59,23 +73,42 @@ public class Holograms extends HologramAPI implements Listener {
     @Getter
     private PlaceholderAdapter placeholderAdapter;
 
+    private Map<String, BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource>> gridSources = new HashMap<>();
+    private Map<String, Supplier<GridSource>> gridSourceInstances = new HashMap<>();
+
     @Override
     public void onLoad() {
+        getLogger().info("Loading characters...");
+        loadCharsWidths();
+
         Entity.registerEntity("Hologram", HologramEntity.class);
         instance = this;
         HologramAPI.instance = this;
 
-        saveDefaultConfig();
+        getLogger().info("Loading config...");
+        checkConfig();
         this.configuration = new HologramConfiguration(this);
 
         saveResource("holograms.yml");
         path = new File(getDataFolder(), "holograms.yml");
+
+        PacketManager.init();
+
+        getLogger().info("Loading placeholders");
+        initPlaceholderAdapter();
+
+        //init grid sources
+        getLogger().info("Registering default grid sources");
+        registerDefaultGridSources();
 
         hologramUpdater.start();
     }
 
     @Override
     public void onEnable() {
+        getLogger().info("Loading grid config...");
+        registerGridSourceInstances();
+
         getServer().getCommandMap().register("hologram", new HologramCommand(this));
         getServer().getPluginManager().addPermission(new Permission("hologram.use", "Main holograms permission"));
 
@@ -97,10 +130,11 @@ public class Holograms extends HologramAPI implements Listener {
             }
         }, 1);
 
-        initPlaceholderAdapter();
+        getLogger().info("Loading holograms");
         reloadHolograms();
 
-
+//        getLogger().info("standard: "+CharactersTable.lengthOf('a', false));
+//        getLogger().info("unicode: "+CharactersTable.lengthOf('a', true));
     }
 
     @Override
@@ -122,6 +156,12 @@ public class Holograms extends HologramAPI implements Listener {
                 ConfigSection hl = new ConfigSection();
                 hl.set("update", hologram.getUpdateInterval());
                 hl.set("data", hologram.getRawTranslations());
+
+                Hologram.GridSettings grid = hologram.getGridSettings();
+                hl.set("grid", grid.isEnabled());
+                hl.set("grid_col_space", grid.getColumnSpace());
+                hl.set("grid_source", grid.getSource() != null ? grid.getSource().getName() : "");
+                hl.set("grid_header", grid.isHeader());
 
                 holograms.set(hologram.getName(), hl);
             }
@@ -159,10 +199,14 @@ public class Holograms extends HologramAPI implements Listener {
                 }
 
                 int updateInterval = section.getInt("update", -1);
+                boolean grid = section.getBoolean("grid", false);
+                int gridColSpace = section.getInt("grid_col_space", 20);
+                String gridSource = section.getString("grid_source", "");
+                boolean gridHeader = section.getBoolean("grid_header", false);
 
                 checkLineCount(trans, id);
 
-                Hologram hologram = new Hologram(id, trans);
+                Hologram hologram = new Hologram(id, trans, new Hologram.GridSettings(grid, getGridSource(gridSource), gridColSpace, gridHeader));
                 hologram.setUpdateInterval(updateInterval);
 
                 map.put(id, hologram);
@@ -225,7 +269,7 @@ public class Holograms extends HologramAPI implements Listener {
                 }
 
                 checkLineCount(trans, id);
-                Hologram hologram = new Hologram(id, trans);
+                Hologram hologram = new Hologram(id, trans, new Hologram.GridSettings());
 
                 map.put(id, hologram);
             }
@@ -337,6 +381,157 @@ public class Holograms extends HologramAPI implements Listener {
         return this.holograms;
     }
 
+    private void registerGridSourceInstances() {
+        saveResource("grids.yml");
+        Config grids = new Config(new File(getDataFolder(), "grids.yml"), Config.YAML);
+
+        ConfigSection section = grids.getSection("grids");
+
+        if (section == null) {
+            return;
+        }
+
+        for (Entry<String, Object> entry : section.entrySet()) {
+            String name = entry.getKey();
+            ConfigSection value = (ConfigSection) entry.getValue();
+
+            if (value == null || value.isEmpty()) {
+                getLogger().warning("Grid " + name + " doesn't contain all required data");
+                continue;
+            }
+
+            String source = value.getString("source");
+
+            if (source == null || source.isEmpty()) {
+                getLogger().warning("Grid " + name + " doesn't contain all required data");
+                continue;
+            }
+
+            int offset = value.getInt("offset", 0);
+            int limit = value.getInt("limit", 10);
+
+            Map<String, Object> data = value.getSection("data");
+            registerGridSource(new AbstractGridSource.SourceParameters(name, offset, limit), source, data);
+        }
+    }
+
+    public boolean registerGridSourceClass(String identifier, Class<? extends GridSource> clazz) {
+        if (gridSources.containsKey(identifier)) return false;
+
+        BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource> factory = null;
+
+        try {
+            construct_loop:
+            for (Constructor<?> cons : clazz.getDeclaredConstructors()) {
+                cons.setAccessible(true);
+
+                final List<Object> args = new ArrayList<>();
+                int dataIndex = -1;
+                int paramsIndex = -1;
+
+                Parameter[] params = cons.getParameters();
+                for (int i = 0; i < params.length; i++) {
+                    Parameter param = params[i];
+
+                    Class<?> paramClass = param.getClass();
+                    if (paramClass.isAssignableFrom(AbstractGridSource.SourceParameters.class)) {
+                        args.add(null);
+                        paramsIndex = i;
+                    } else if (paramClass.isAssignableFrom(Holograms.class)) {
+                        args.add(this);
+                    } else if (paramClass.isAssignableFrom(Map.class)) {
+                        args.add(null);
+                        dataIndex = i;
+                    } else if (paramClass.isAssignableFrom(Server.class)) {
+                        args.add(getServer());
+                    } else {
+                        continue construct_loop;
+                    }
+                }
+
+                if (dataIndex != -1 || paramsIndex != -1) {
+                    final int _dataIndex = dataIndex;
+                    final int _paramsIndex = paramsIndex;
+
+                    factory = (parameters, data) -> {
+                        if (_dataIndex >= 0) {
+                            args.set(_dataIndex, data);
+                        }
+
+                        if (_paramsIndex >= 0) {
+                            args.set(_paramsIndex, parameters);
+                        }
+
+                        try {
+                            return (GridSource) cons.newInstance(args.toArray());
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    };
+                } else {
+                    factory = (name, data) -> {
+                        try {
+                            return (GridSource) cons.newInstance(args.toArray());
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    };
+                }
+
+                break;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+
+        if (factory == null) {
+            return false;
+        }
+
+        return gridSources.put(identifier, factory) != null;
+    }
+
+    public boolean registerGridSourceClass(String identifier, BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource> factory) {
+        if (gridSources.containsKey(identifier)) return false;
+
+        return gridSources.put(identifier, factory) != null;
+    }
+
+    private void registerDefaultGridSources() {
+        registerGridSourceClass("example", ExampleGridSource.class);
+        registerGridSourceClass("mysql", MySQLGridSource.class);
+
+        if (this.placeholderAdapter.supports()) {
+            registerGridSourceClass("placeholder", PlaceholderGridSource.class);
+        }
+    }
+
+    public GridSource registerGridSource(AbstractGridSource.SourceParameters parameters, String sourceIdentifier, Map<String, Object> data) {
+        BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource> factory = this.gridSources.get(sourceIdentifier);
+
+        if (factory == null) {
+            return null;
+        }
+
+        GridSource source = factory.apply(parameters, data);
+
+        if (source != null) {
+            this.gridSourceInstances.put(parameters.name, () -> source);
+        }
+
+        return source;
+    }
+
+    public GridSource getGridSource(String name) {
+        Supplier<GridSource> source = this.gridSourceInstances.get(name);
+
+        if (source != null) {
+            return source.get();
+        }
+
+        return null;
+    }
+
     private void initPlaceholderAdapter() {
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             this.placeholderAdapter = new PlaceholderAPIAdapter();
@@ -344,5 +539,60 @@ public class Holograms extends HologramAPI implements Listener {
         }
 
         this.placeholderAdapter = new DefaultPlaceholderAdapter();
+    }
+
+    private void checkConfig() {
+        Config cfg = getConfig();
+
+        int version = cfg.getInt("version");
+        if (version > HologramConfiguration.VERSION) {
+            getLogger().warning("Your hologram plugin isn't up to date or you changed the configuration version in config file (don't do this)");
+            return;
+        }
+
+        if (version == HologramConfiguration.VERSION) {
+            return;
+        }
+
+        Config latest = new Config(Config.YAML);
+        latest.load(getResource("config.yml"));
+
+        cfg.save();
+
+        if (checkConfigSection(cfg.getRootSection(), latest.getRootSection())) {
+            getLogger().info("Updating config.yml...");
+            cfg.set("version", HologramConfiguration.VERSION);
+            cfg.save();
+        }
+    }
+
+    private boolean checkConfigSection(ConfigSection cfg, Map<String, Object> data) {
+        boolean change = false;
+
+        for (Entry<String, Object> entry : data.entrySet()) {
+            String key = entry.getKey();
+            Object val = entry.getValue();
+
+            Object cfgVal = cfg.get(key);
+
+            if (!(cfgVal instanceof ConfigSection)) {
+                cfg.set(key, val);
+                change = true;
+            } else if (val instanceof ConfigSection) {
+                if (checkConfigSection((ConfigSection) cfgVal, ((ConfigSection) val).getAll())) {
+                    change = true;
+                }
+            }
+        }
+
+        return change;
+    }
+
+    private void loadCharsWidths() {
+        try {
+            CharactersTable.init(getResource("ascii.png"), getResource("glyph_sizes.bin"));
+        } catch (IOException e) {
+            MainLogger.getLogger().logException(e);
+        }
     }
 }
