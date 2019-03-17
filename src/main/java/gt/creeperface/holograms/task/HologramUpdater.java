@@ -164,36 +164,32 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         }
 
         if (entry.isVisitorSensitive()/* || entry.getPlayers().size() == 1*/) {
-//            MainLogger.getLogger().info("spawning vs to "+entry.getPlayers());
             spawnToSeparatePlayers(entry.getPlayers(), entry);
         } else {
-//            MainLogger.getLogger().info("spawning all to "+entry.getPlayers());
             spawnHologramToAll(entry);
         }
     }
 
     private void spawnHologramToAll(UpdateEntry updateEntry) {
-        MainLogger.getLogger().info("lines init: " + updateEntry.translations);
-
         List<List<String>> trans = addPlaceHolders(updateEntry.translations, updateEntry.getPlaceholders(), updateEntry.matchedPlaceholders);
 
-        if (trans.isEmpty()) {
+        Hologram.GridSettings grid = updateEntry.getGrid();
+        if (trans.isEmpty() && (!grid.isEnabled() || grid.getSource() == null)) {
             return;
         }
 
-        if (updateEntry.getGrid().isEnabled()) {
+        if (grid.isEnabled()) {
             for (int i = 0; i < trans.size(); i++) {
-                trans.set(i, GridFormatter.process(trans.get(i), updateEntry.getGrid()));
+                trans.set(i, GridFormatter.process(trans.get(i), grid));
             }
         }
+
 
         //MainLogger.getLogger().info("origin size: "+updateEntry.translations.size()+"   after length: "+trans.size());
 
         /*if (trans.equals(updateEntry.getOldLines())) {
             return;
         }*/
-
-//        MainLogger.getLogger().info("lines: "+trans);
 
         List<DataPacket> removePacketsToSend = new ArrayList<>();
         List<List<DataPacket>> packetsToSend = new ArrayList<>();
@@ -210,10 +206,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                 removePacketsToSend.addAll(entityEntry.getRemovePackets());
 
             if (updateEntry.spawn) {
-//                MainLogger.getLogger().info("spawn");
-
                 for (List<String> lines : trans) {
-                    cachedPackets.add(compile(lines, pos, reservedIds, true));
+                    cachedPackets.add(compile(lines, pos, reservedIds));
                 }
             } else {
                 int transIndex = 0;
@@ -222,11 +216,13 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                 for (List<String> lines : trans) {
                     List<DataPacket> setData = new ArrayList<>(lines.size());
 
+                    int idIndexOffset = reservedIds.length - lines.size();
+
                     for (int i = 0; i < lines.size(); i++) {
                         String line = lines.get(i);
 
                         SetEntityDataPacket pk = new SetEntityDataPacket();
-                        pk.eid = reservedIds[i];
+                        pk.eid = reservedIds[idIndexOffset + i];
                         pk.metadata = new EntityMetadata()
                                 .putString(Entity.DATA_NAMETAG, line);
 
@@ -245,7 +241,6 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                     }
 
                     langPackets.addAll(setData);
-                    //MainLogger.getLogger().info("index: "+transIndex);
                     transIndex++;
                 }
             }
@@ -392,10 +387,9 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             return;
         }
 
-        List<List<String>> trans = addPlaceHolders(updateEntry.translations, updateEntry.getPlaceholders(), updateEntry.matchedPlaceholders);
+        List<List<String>> trans = addPlaceHolders(updateEntry.translations, updateEntry.placeholders, updateEntry.matchedPlaceholders);
         updateEntry.translations.clear();
         updateEntry.translations.addAll(trans);
-
 
         for (PlayerEntry entry : playerEntries) {
             packets.add(spawnHologramTo(entry, updateEntry, entityEntries));
@@ -460,7 +454,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         SinglePlayerEntry packetEntry = new SinglePlayerEntry(playerEntry.player);
 
         List<List<String>> rawTranslations = updateEntry.translations;
-        if (rawTranslations.isEmpty()) {
+        Hologram.GridSettings grid = updateEntry.getGrid();
+        if (rawTranslations.isEmpty() && (!grid.isEnabled() || grid.getSource() == null)) {
             return packetEntry;
         }
 
@@ -472,8 +467,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         List<String> old = rawTranslations.get(lang);
         List<String> lines = replaceTranslation(old, updateEntry.getPlayerPlaceholders().get(playerEntry.player.getId()), updateEntry.matchedPlaceholders.get(lang));
 
-        if (updateEntry.grid.isEnabled()) {
-            lines = GridFormatter.process(lines, updateEntry.getGrid());
+        if (grid.isEnabled()) {
+            lines = GridFormatter.process(lines, grid);
         }
 
         if (lines.isEmpty()) {
@@ -511,7 +506,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
                     packets.add(pk);
                 }
             } else {
-                packets = (List) compile(lines, pos, reservedIds, updateEntry.spawn);
+                packets = (List) compile(lines, pos, reservedIds);
             }
 
             entityEntry.clearCachedPackets();
@@ -531,13 +526,11 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
     private List<List<String>> addPlaceHolders(List<List<String>> data, Map<String, String> placeHolders, List<List<List<PlaceholderAdapter.MatchedPlaceholder>>> matched) {
         List<List<String>> trans = new ArrayList<>(data.size());
 
-        MainLogger.getLogger().info("lines before: " + data);
         int i = 0;
         for (List<String> translation : data) {
             trans.add(replaceTranslation(translation, placeHolders, matched.get(i++)));
         }
 
-        MainLogger.getLogger().info("lines after: " + trans);
         return trans;
     }
 
@@ -548,30 +541,43 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             String line = translation.get(i);
 
             List<PlaceholderAdapter.MatchedPlaceholder> transMatched = matched.get(i);
+
             if (transMatched.isEmpty()) {
                 replaced.add(line);
                 continue;
             }
 
-            StringBuilder rowBuilder = new StringBuilder(line);
-            int offset = 0;
+//            StringBuilder rowBuilder = new StringBuilder(line);
+//            int offset = 0;
 
             for (int j = 0; j < transMatched.size(); j++) {
-                PlaceholderAdapter.MatchedPlaceholder rowMatched = transMatched.get(i);
+                PlaceholderAdapter.MatchedPlaceholder rowMatched = transMatched.get(j);
 
                 String replacement = placeHolders.get(rowMatched.name);
 
-                rowBuilder.replace(offset + rowMatched.start, offset + rowMatched.end, replacement);
-                offset += replacement.length() - (rowMatched.end - rowMatched.start);
+                if (replacement == null) {
+//                    rowMatched.offset = offset;
+                    continue;
+                }
+
+                line = line.replace("%" + rowMatched.name + "%", replacement);
+
+//                int start = rowBuilder.indexOf(find);
+//
+//                if(start != -1) {
+//                    rowBuilder.replace(start, start + find.length(), find);
+//                }
+//                rowBuilder.replace(rowMatched.offset + offset + rowMatched.start, rowMatched.offset + offset + rowMatched.end, replacement);
+//                offset += replacement.length() - (rowMatched.end - rowMatched.start);
             }
 
-            replaced.add(rowBuilder.toString());
+            replaced.add(line);
         }
 
         return replaced;
     }
 
-    private List<AddEntityPacket> compile(List<String> lines, Vector3 pos, long[] entitiyIds, boolean spawn) {
+    private List<AddEntityPacket> compile(List<String> lines, Vector3 pos, long[] entitiyIds) {
         float baseY = (float) pos.y;
 
         List<AddEntityPacket> packets = new ArrayList<>(lines.size());
@@ -590,6 +596,8 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             }
 
             long id = entitiyIds[(entitiyIds.length - 1) - i++];
+
+//            AbstractAddPacket pk = PacketManager.getAddPacket()
 
             AddEntityPacket pk = new AddEntityPacket();
             pk.entityUniqueId = id;
@@ -651,22 +659,39 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
     }
 
     public void update(Hologram hologram, List<List<String>> oldLines, List<EntityEntry> entityEntries, boolean spawn, Collection<Player> players) {
-        if (players.isEmpty()) {
+        if (players.isEmpty() || entityEntries.isEmpty()) {
             return;
         }
 
+        Hologram.GridSettings gridSettings = hologram.getGridSettings().clone();
+
         List<List<String>> translations = hologram.getRawTranslations();
-        if (translations.size() <= 0) {
+        if (translations.isEmpty() && (!gridSettings.isEnabled() || gridSettings.getSource() == null)) {
             //TODO: despawn probably?
             return;
         }
 
         List<List<List<PlaceholderAdapter.MatchedPlaceholder>>> translationPlaceholders = hologram.getTranslationPlaceholders();
 
-
-//        if(!spawn) {
-//            MainLogger.getLogger().logException(new NullPointerException());
+//        for (List<List<PlaceholderAdapter.MatchedPlaceholder>> translationPlaceholder : translationPlaceholders) {
+//            for (List<PlaceholderAdapter.MatchedPlaceholder> placeholders : translationPlaceholder) {
+//                for (int i = 0; i < placeholders.size(); i++) {
+//                    placeholders.set(i, placeholders.get(i).clone());
+//                }
+//            }
 //        }
+
+        int transSize = translations.get(0).size();
+
+        if (gridSettings.isEnabled() && gridSettings.getSource() != null) {
+            transSize += gridSettings.getSource().getLimit();
+
+            if (gridSettings.getSource().supportsHeader() && gridSettings.isHeader()) {
+                transSize += 2; //header + blank line
+            }
+        }
+
+        List<RemoveEntityPacket> repks = entityEntries.get(0).getRemovePackets();
 
         entityEntries = new ArrayList<>(entityEntries);
         for (EntityEntry entityEntry : entityEntries) {
@@ -675,10 +700,10 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             entityEntry.setSafePos(new Vector3(e.x, e.y, e.z));
         }
 
-        int arraySize = translations.get(0).size();
+        int arraySize = transSize;
         long[][] entityIds = new long[entityEntries.size()][arraySize];
 
-        boolean needRecompile = oldLines != null && !oldLines.isEmpty() && oldLines.get(0).size() != translations.get(0).size();
+        boolean needRecompile = repks.size() != arraySize;
 
         if (needRecompile) {
             spawn = true;
@@ -691,10 +716,6 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             for (int i = 0; i < entityIds.length; i++) {
                 EntityEntry entry = entityEntries.get(i);
                 List<RemoveEntityPacket> reps = entry.getRemovePackets();
-
-//                for (RemoveEntityPacket crp : reps) {
-//                    MainLogger.getLogger().info("load remove: "+crp.eid);
-//                }
 
                 if (reps.isEmpty() || reps.size() != arraySize) {
                     for (int j = 0; j < arraySize; j++) {
@@ -713,8 +734,6 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         for (Player p : players) {
             playersData.add(new PlayerEntry(p, plugin.getPlaceholderAdapter().getLanguage(p)));
         }
-
-        Hologram.GridSettings gridSettings = hologram.getGridSettings().clone();
 
         GridSource gridSource = gridSettings.getSource();
         if (gridSource != null) {

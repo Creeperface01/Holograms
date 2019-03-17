@@ -31,6 +31,10 @@ public interface GridSource<T extends Object> {
 
     int getRows();
 
+    void forceReload();
+
+    void resetOffset();
+
     default boolean supportsHeader() {
         return false;
     }

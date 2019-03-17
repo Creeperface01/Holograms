@@ -6,10 +6,7 @@ import gt.creeperface.holograms.HologramConfiguration;
 import gt.creeperface.holograms.api.grid.source.GridSource;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,10 +19,15 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class GridFormatter {
 
+    private static final int SPACE_WIDTH = 4;
+    private static final double ASCII_SIZE_MULTIPLIER = 2;
+
     public static List<String> process(List<String> lines, Hologram.GridSettings settings) {
         List<List<String>> split = new ArrayList<>();
         Int2ObjectMap<String> excluded = new Int2ObjectOpenHashMap<>();
         boolean source = settings.getSource() != null;
+
+        boolean[] unicode = new boolean[lines.size()];
 
         int excludedIndex = 0;
         for (String line : lines) {
@@ -36,23 +38,23 @@ public final class GridFormatter {
                 continue;
             }
 
-            String[] splitLine = line.split(HologramConfiguration.getGridColSeparator());
-
-            if (splitLine.length <= 0) {
-                continue;
+            if (CharactersTable.isUnicode(line)) {
+                unicode[excludedIndex - 1] = true;
             }
+
+            String[] splitLine = line.split(HologramConfiguration.getGridColSeparator());
 
             split.add(Arrays.asList(splitLine));
         }
 
         if (source) {
-            return processSource(split, excluded, settings);
+            return processSource(split, excluded, unicode, settings);
         } else {
-            return process(split, excluded, settings);
+            return process(split, excluded, unicode, settings);
         }
     }
 
-    private static List<String> processSource(List<List<String>> lines, Int2ObjectMap<String> excluded, Hologram.GridSettings settings) {
+    private static List<String> processSource(List<List<String>> lines, Int2ObjectMap<String> excluded, boolean[] unicode, Hologram.GridSettings settings) {
         GridSource source = settings.getSource();
 
         if (settings.isHeader() && source.supportsHeader()) {
@@ -60,39 +62,39 @@ public final class GridFormatter {
             lines.add(Collections.emptyList());
         }
 
+        source.resetOffset();
         while (source.hasNextRow()) {
             lines.add(source.nextRow());
         }
 
-        return process(lines, excluded, settings);
+        boolean[] unicode2 = new boolean[lines.size()];
+        System.arraycopy(unicode, 0, unicode2, 0, unicode.length);
+
+        for (int i = unicode.length; i < unicode2.length; i++) {
+            unicode2[i] = CharactersTable.isUnicode(String.join("", lines.get(i)));
+        }
+
+        return process(lines, excluded, unicode2, settings);
     }
 
-    private static List<String> process(List<List<String>> lines, Int2ObjectMap<String> excluded, Hologram.GridSettings settings) {
-        int columns = 0;
+    private static List<String> process(List<List<String>> lines, Int2ObjectMap<String> excluded, boolean[] unicode, Hologram.GridSettings settings) {
+        int columnCount = 0;
 
-        List<List<ColumnEntry>> lineCols = new ArrayList<>(lines.size());
+        List<ColumnEntry[]> lineCols = new ArrayList<>(lines.size());
         List<Integer> maxColumnsLengths = new ArrayList<>();
-//        List<Integer> minColumnsLengths = new ArrayList<>();
 
-//        int li = 0; //excluded line count
-        for (List<String> line : lines) {
-//            li++;
-//            if (line.startsWith(HologramConfiguration.getGridExcluder())) {
-//                excluded.put(li - 1, line);
-//                continue;
-//            }
-//
-//            String[] split = line.split(HologramConfiguration.getGridColSeparator());
-//
-//            if (split.length <= 0) {
-//                continue;
-//            }
+        for (int li = 0; li < lines.size(); li++) {
+            List<String> line = lines.get(li);
+            final int index = li;
 
-            ColumnEntry[] cols = line.stream().map(s -> {
+            //get lengths of separate columns
+            ColumnEntry[] cols = line.stream().map(column -> {
                 int len = 0;
                 boolean wasColor = false;
+                boolean bold = false;
+                boolean unicodeLine = unicode[index];
 
-                for (char c : s.toCharArray()) {
+                for (char c : column.toCharArray()) {
                     if (c == '§') {
                         wasColor = true;
                         continue;
@@ -101,124 +103,102 @@ public final class GridFormatter {
                     if (wasColor) {
                         wasColor = false;
 
-                        if (TextFormat.getByChar(c) != null) {
+                        if (c == 'l' || c == 'L') { //bold
+                            bold = true;
+                        } else if (c == 'r' || c == 'R') { //reset
+                            bold = false;
+                        } else if (TextFormat.getByChar(c) != null) {
                             continue;
+                        } else {
+                            len += CharactersTable.lengthOf('§', unicodeLine);
                         }
                     }
 
-                    len += CharactersTable.lengthOf(c, false); //TODO: unicode
+                    if (bold) {
+                        len++;
+                    }
+
+                    len += CharactersTable.lengthOf(c, unicodeLine);
                 }
 
-                return new ColumnEntry(s, len);
+                return new ColumnEntry(column + "§r", len);
             }).toArray(ColumnEntry[]::new);
 
-            if (cols.length > columns) {
-                columns = cols.length;
+            //check max column count
+            if (cols.length > columnCount) {
+                columnCount = cols.length;
             }
 
+            //max length per column
             for (int i = 0; i < cols.length; i++) {
                 ColumnEntry col = cols[i];
 
                 if (maxColumnsLengths.size() <= i) {
                     maxColumnsLengths.add(col.length);
-                }
-
-//                if(minColumnsLengths.size() <= i) {
-//                    minColumnsLengths.add(col.length);
-//                }
-
-                int maxLength = maxColumnsLengths.get(i);
-//                int minLength = minColumnsLengths.get(i);
-
-                if (col.length > maxLength) {
-                    maxColumnsLengths.set(i, col.length);
-                }
-
-//                if (col.length < minLength) {
-//                    minColumnsLengths.set(i, col.length);
-//                }
-            }
-
-            lineCols.add(Arrays.asList(cols));
-        }
-
-//        MainLogger.getLogger().info("max lengths: "+maxColumnsLengths);
-
-        List<String> newLines = new ArrayList<>();
-
-        int excludedIndex = 0;
-        for (List<ColumnEntry> lineCol : lineCols) {
-            String excludedLine;
-            boolean _break = false;
-
-            while ((excludedLine = excluded.get(excludedIndex++)) != null) {
-                newLines.add(excludedLine);
-                _break = true;
-            }
-            if (_break) break;
-
-            StringBuilder lineBuilder = new StringBuilder();
-            int diff = 0;
-
-            for (int i = 0; i < lineCol.size(); i++) {
-                ColumnEntry entry = lineCol.get(i);
-                if (entry.column.isEmpty()) {
                     continue;
                 }
 
                 int maxLength = maxColumnsLengths.get(i);
-//                int minLength = minColumnsLengths.get(i);
 
-                int expectedLength = (maxLength - entry.length) + diff;
+                if (col.length > maxLength) {
+                    maxColumnsLengths.set(i, col.length);
+                }
+            }
 
-                int spaces = (int) Math.round((double) expectedLength / 4); //space is 4
-                diff = expectedLength - (spaces * 4) + (spaces % 2) * 4;
+            lineCols.add(cols);
+        }
 
-                char[] spaceChars = new char[spaces / 2];
-//                MainLogger.getLogger().info("spaces: "+spaces+"  rounded: "+spaceChars.length);
+        List<String> newLines = new ArrayList<>();
+        int excludedIndex = 0;
+
+        char[] columnSpaces = new char[settings.getColumnSpace() / SPACE_WIDTH];
+        Arrays.fill(columnSpaces, ' ');
+
+        //format columns
+        for (int ci = 0; ci < lineCols.size(); ci++) {
+            ColumnEntry[] lineCol = lineCols.get(ci);
+
+            String excludedLine;
+
+            while ((excludedLine = excluded.get(excludedIndex++)) != null) {
+                newLines.add(excludedLine);
+            }
+
+            StringBuilder lineBuilder = new StringBuilder();
+            double diff = 0;
+
+            for (int i = 0; i < lineCol.length; i++) {
+                ColumnEntry entry = lineCol[i];
+
+                int maxLength = maxColumnsLengths.get(i);
+
+                //length to add
+                double expectedLength = (maxLength - entry.length) + diff;
+
+                //convert length to spaces
+                int spaces = (int) Math.round(expectedLength / SPACE_WIDTH);
+
+                //space chars to append
+                char[] spaceChars = new char[spaces == 1 && diff > 0 ? 1 : spaces / 2];
                 Arrays.fill(spaceChars, ' ');
 
-//                MainLogger.getLogger().info("appended "+spaces+" spaces for "+entry.column);
+                //save diff after rounding by space length
+                diff = (expectedLength - (spaces * SPACE_WIDTH)) + ((spaces % 2) * SPACE_WIDTH);
 
                 lineBuilder.append(spaceChars);
                 lineBuilder.append(entry.column);
                 lineBuilder.append(spaceChars);
 
-//                int colSpaceLen = columnSpace;
-//                diff += colSpaceLen % 4;
-
-                char[] columnSpaces = new char[settings.getColumnSpace() / 4];
-                Arrays.fill(columnSpaces, ' ');
-
                 lineBuilder.append(columnSpaces);
             }
 
-            newLines.add(lineBuilder.toString());
-        }
+            String line = lineBuilder.toString();
 
-//        int maxLength = 0;
-//
-//        for (String line : newLines) {
-//            int len = line.length();
-//            int i = len;
-//
-//            while(i > 0 && line.charAt(--i) != ' ') {
-//                len--;
-//            }
-//
-//            if(len > maxLength) {
-//                maxLength = len;
-//            }
-//        }
-//
-        for (int i = 0; i < newLines.size(); i++) {
-            String line = newLines.get(i);
-
-            if (line.isEmpty()) {
-                continue;
+            if (!line.isEmpty()) {
+                line = line.substring(0, line.length() - (settings.getColumnSpace() / SPACE_WIDTH));
             }
 
-            newLines.set(i, line.substring(0, line.length() - (settings.getColumnSpace() / 4)));
+            newLines.add(line);
         }
 
         return newLines;
@@ -226,6 +206,7 @@ public final class GridFormatter {
 
     @AllArgsConstructor
     @Getter
+    @ToString
     private static class ColumnEntry {
 
         private final String column;

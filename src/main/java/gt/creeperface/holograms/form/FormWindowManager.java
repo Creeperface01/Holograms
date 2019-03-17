@@ -80,7 +80,7 @@ public class FormWindowManager {
     }*/
 
     public void addGeneralWindow(Player p, HologramEntity entity) {
-        FormWindowCustom window = new FormWindowCustom(entity.getHologramId());
+        FormWindowCustom window = new FormWindowCustom("Hologram: " + entity.getHologramId());
 
         window.addElement(new ElementLabel("Position"));
         window.addElement(new ElementInput("X", "X", "" + entity.getX()));
@@ -94,17 +94,9 @@ public class FormWindowManager {
         window.addElement(new ElementInput("Z", "Z", "0"));
 
         window.addElement(new ElementLabel(""));
-        window.addElement(new ElementToggle("Remove hologram", false));
+//        window.addElement(new ElementToggle("Remove hologram", false));
 
         window.addElement(new ElementInput("Autoupdate", "ticks", "" + entity.getHologram().getUpdateInterval()));
-
-        Hologram.GridSettings grid = entity.getHologram().getGridSettings();
-
-        window.addElement(new ElementLabel(""));
-        window.addElement(new ElementToggle("Display as grid", grid.isEnabled()));
-        window.addElement(new ElementInput("Space between columns", "value", grid.getColumnSpace() + ""));
-        window.addElement(new ElementInput("Grid data source", "identitifer", grid.getSource() != null ? grid.getSource().getIdentifier() : ""));
-        window.addElement(new ElementToggle("Add grid header", grid.isHeader()));
 
         p.showFormWindow(window, Values.GENERAL_WINDOW_ID);
     }
@@ -114,7 +106,7 @@ public class FormWindowManager {
     }
 
     public void addTextWindow(Player p, HologramEntity entity, List<List<String>> trans) {
-        FormWindowCustom window = new FormWindowCustom(entity.getHologramId());
+        FormWindowCustom window = new FormWindowCustom("Hologram: " + entity.getHologramId());
 
         window.addElement(new ElementLabel("Translations"));
 
@@ -147,10 +139,25 @@ public class FormWindowManager {
         p.showFormWindow(window, Values.TEXT_WINDOW_ID);
     }
 
+    public void addGridWindow(Player p, HologramEntity entity) {
+        FormWindowCustom window = new FormWindowCustom("Hologram: " + entity.getHologramId());
+
+        Hologram.GridSettings grid = entity.getHologram().getGridSettings();
+
+        window.addElement(new ElementToggle("Display as grid", grid.isEnabled()));
+        window.addElement(new ElementInput("Space between columns", "value", grid.getColumnSpace() + ""));
+        window.addElement(new ElementInput("Grid data source", "identitifer", grid.getSource() != null ? grid.getSource().getName() : ""));
+        window.addElement(new ElementToggle("Add grid header", grid.isHeader()));
+
+        p.showFormWindow(window, Values.GRID_WINDOW_ID);
+    }
+
     public void addMainWindow(Player p, HologramEntity entity) {
         FormWindowSimple window = new FormWindowSimple("Hologram Settings - (" + entity.getHologramId() + ")", "");
         window.addButton(new ElementButton("General settings"));
         window.addButton(new ElementButton("Text settings"));
+        window.addButton(new ElementButton("Grid settings"));
+        window.addButton(new ElementButton("Remove hologram"));
 
         p.showFormWindow(window, Values.WINDOW_ID);
     }

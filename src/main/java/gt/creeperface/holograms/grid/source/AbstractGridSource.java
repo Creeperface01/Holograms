@@ -31,6 +31,10 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
 
     private List<String> header;
 
+    private long lastLoad;
+
+    private boolean forceReload = false;
+
     public AbstractGridSource(SourceParameters parameters) {
         Preconditions.checkNotNull(parameters, "null parameters");
 
@@ -91,6 +95,12 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
         return source.size();
     }
 
+    @Override
+    public void resetOffset() {
+        this.currentColumn = -1;
+        this.currentRow = -1;
+    }
+
     List<List<T>> getSource() {
         return source;
     }
@@ -99,6 +109,24 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
         this.currentColumn = -1;
         this.currentRow = -1;
         this.source = data;
+    }
+
+    @Override
+    public void load() {
+        long time = System.currentTimeMillis();
+
+        if (!forceReload && ((double) (time - lastLoad)) / 1000 < this.parameters.refresh) {
+            return;
+        }
+
+        lastLoad = time;
+        forceReload = false;
+        GridSource.super.load();
+    }
+
+    @Override
+    public void forceReload() {
+        this.forceReload = true;
     }
 
     @Override
@@ -151,6 +179,7 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
         public String name;
         public int offset;
         public int limit;
+        public int refresh;
 
     }
 }

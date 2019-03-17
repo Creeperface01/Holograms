@@ -6,10 +6,7 @@ import gt.creeperface.holograms.sql.MySQLManager;
 import lombok.Cleanup;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * @author CreeperFace
@@ -17,12 +14,17 @@ import java.util.Objects;
 public class MySQLGridSource extends AbstractGridSource<String> {
 
     private final String table;
+    private Set<String> columns;
 
     public MySQLGridSource(SourceParameters parameters, Map<String, Object> data) {
         super(parameters);
         Preconditions.checkNotNull(data.get("table"));
 
         this.table = Objects.toString(data.get("table"));
+
+        if (data.containsKey("columns")) {
+            this.columns = new HashSet<>((List) data.get("columns"));
+        }
     }
 
     @Override
@@ -40,14 +42,18 @@ public class MySQLGridSource extends AbstractGridSource<String> {
             ResultSetMetaData meta = result.getMetaData();
 
             for (int i = 0; i < meta.getColumnCount(); i++) {
-                colNames.add(meta.getColumnName(i + 1));
+                String colName = meta.getColumnName(i + 1);
+
+                if (loadColumn(colName)) {
+                    colNames.add(colName);
+                }
             }
 
             while (result.next()) {
                 List<String> row = new ArrayList<>();
 
-                for (int i = 0; i < meta.getColumnCount(); i++) {
-                    row.add(Objects.toString(result.getObject(i + 1)));
+                for (String colName : colNames) {
+                    row.add(Objects.toString(result.getObject(colName)));
                 }
 
                 rows.add(row);
@@ -60,14 +66,13 @@ public class MySQLGridSource extends AbstractGridSource<String> {
         }
     }
 
-    @Override
-    public boolean supportsHeader() {
-        return true;
+    private boolean loadColumn(String column) {
+        return this.columns == null || this.columns.contains(column);
     }
 
     @Override
-    public List<String> getHeader() {
-        return null;
+    public boolean supportsHeader() {
+        return true;
     }
 
     @Override

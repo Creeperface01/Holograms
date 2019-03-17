@@ -36,7 +36,6 @@ import lombok.Getter;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Parameter;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.BiFunction;
@@ -132,9 +131,6 @@ public class Holograms extends HologramAPI implements Listener {
 
         getLogger().info("Loading holograms");
         reloadHolograms();
-
-//        getLogger().info("standard: "+CharactersTable.lengthOf('a', false));
-//        getLogger().info("unicode: "+CharactersTable.lengthOf('a', true));
     }
 
     @Override
@@ -409,9 +405,10 @@ public class Holograms extends HologramAPI implements Listener {
 
             int offset = value.getInt("offset", 0);
             int limit = value.getInt("limit", 10);
+            int refresh = value.getInt("refresh", 10);
 
             Map<String, Object> data = value.getSection("data");
-            registerGridSource(new AbstractGridSource.SourceParameters(name, offset, limit), source, data);
+            registerGridSource(new AbstractGridSource.SourceParameters(name, offset, limit, refresh), source, data);
         }
     }
 
@@ -429,22 +426,22 @@ public class Holograms extends HologramAPI implements Listener {
                 int dataIndex = -1;
                 int paramsIndex = -1;
 
-                Parameter[] params = cons.getParameters();
+                Class[] params = cons.getParameterTypes();
                 for (int i = 0; i < params.length; i++) {
-                    Parameter param = params[i];
+                    Class param = params[i];
 
-                    Class<?> paramClass = param.getClass();
-                    if (paramClass.isAssignableFrom(AbstractGridSource.SourceParameters.class)) {
+                    if (AbstractGridSource.SourceParameters.class.isAssignableFrom(param)) {
                         args.add(null);
                         paramsIndex = i;
-                    } else if (paramClass.isAssignableFrom(Holograms.class)) {
+                    } else if (Holograms.class.isAssignableFrom(param)) {
                         args.add(this);
-                    } else if (paramClass.isAssignableFrom(Map.class)) {
+                    } else if (Map.class.isAssignableFrom(param)) {
                         args.add(null);
                         dataIndex = i;
-                    } else if (paramClass.isAssignableFrom(Server.class)) {
+                    } else if (Server.class.isAssignableFrom(param)) {
                         args.add(getServer());
                     } else {
+                        getLogger().warning("Class " + param.getName() + " cannot be passed as a source constructor argument");
                         continue construct_loop;
                     }
                 }
@@ -481,10 +478,12 @@ public class Holograms extends HologramAPI implements Listener {
                 break;
             }
         } catch (Exception e) {
+            MainLogger.getLogger().logException(e);
             return false;
         }
 
         if (factory == null) {
+            getLogger().warning("Constructor with valid arguments could not be found for source (" + identifier + ")");
             return false;
         }
 
@@ -506,20 +505,16 @@ public class Holograms extends HologramAPI implements Listener {
         }
     }
 
-    public GridSource registerGridSource(AbstractGridSource.SourceParameters parameters, String sourceIdentifier, Map<String, Object> data) {
+    public boolean registerGridSource(AbstractGridSource.SourceParameters parameters, String sourceIdentifier, Map<String, Object> data) {
         BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource> factory = this.gridSources.get(sourceIdentifier);
 
         if (factory == null) {
-            return null;
+            getLogger().warning("Registering source instance(" + parameters.name + ") with unknown source(" + sourceIdentifier + ")");
+            return false;
         }
 
-        GridSource source = factory.apply(parameters, data);
-
-        if (source != null) {
-            this.gridSourceInstances.put(parameters.name, () -> source);
-        }
-
-        return source;
+        this.gridSourceInstances.put(parameters.name, () -> factory.apply(parameters, data));
+        return true;
     }
 
     public GridSource getGridSource(String name) {

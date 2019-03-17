@@ -1,29 +1,16 @@
 package gt.creeperface.holograms.compatibility.network.packet;
 
-import cn.nukkit.network.protocol.DataPacket;
 import cn.nukkit.network.protocol.MoveEntityPacket;
 import gt.creeperface.holograms.compatibility.network.packet.generic.AbstractMovePacket;
+import lombok.Getter;
 
 /**
  * @author CreeperFace
  */
 public class NukkitGTMovePacket extends AbstractMovePacket {
 
+    @Getter
     private final MoveEntityPacket packet = new MoveEntityPacket();
-
-    @Override
-    public DataPacket getPacket() {
-        return packet;
-    }
-
-    @Override
-    public void encodePacket(boolean markEncoded) {
-        packet.encode();
-
-        if (markEncoded) {
-            packet.isEncoded = true;
-        }
-    }
 
     @Override
     public void setX(double x) {

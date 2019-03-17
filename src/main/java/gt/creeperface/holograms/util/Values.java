@@ -12,6 +12,9 @@ public class Values {
     public static final int WINDOW_ID = 9467281;
     public static final int GENERAL_WINDOW_ID = 9467282;
     public static final int TEXT_WINDOW_ID = 9467283;
+    public static final int GRID_WINDOW_ID = 9467284;
+
+    public static final int MAX_WINDOW_ID = 9467381;
 
     public static final double SEARCH_RADIUS = 3;
 

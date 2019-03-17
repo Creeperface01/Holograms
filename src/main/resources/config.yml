@@ -16,11 +16,3 @@ grid:
   col_separator: ";"
   #starting sequence for rows that shouldn't be included to the grid
   excluder: "^^"
-
-#MySQL login credentials
-mysql:
-  host: ""
-  port: 3306
-  database: ""
-  user: ""
-  password: ""

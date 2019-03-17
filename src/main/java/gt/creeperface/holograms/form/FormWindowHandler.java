@@ -29,7 +29,7 @@ public class FormWindowHandler {
             return;
         }
 
-        if (id >= Values.WINDOW_ID && id <= Values.TEXT_WINDOW_ID) {
+        if (id >= Values.WINDOW_ID && id <= Values.MAX_WINDOW_ID) {
             HologramEntity entity = plugin.editors.get(p.getId());
 
             if (entity == null || entity.closed) {
@@ -47,35 +47,11 @@ public class FormWindowHandler {
                 case Values.TEXT_WINDOW_ID:
                     handleTextResponse(p, entity, (FormResponseCustom) response);
                     break;
+                case Values.GRID_WINDOW_ID:
+                    handleGridResponse(p, entity, (FormResponseCustom) response);
+                    break;
             }
         }
-
-        /*Map<Integer, String> inputs = Reflect.on(response).get("inputResponses");
-
-        List<String> lines = new ArrayList<>();
-        int i = 10;
-        for (int count = 0; count < inputs.size() - 6; i++, count++) {
-            String line = inputs.get(i);
-            if(line == null) {
-                break;
-            }
-
-            lines.add(line.replaceAll("&", "§"));
-        }
-
-        String addLines = inputs.get(i + 1);
-        int add = getInt(addLines, 0);
-
-        //Map<Integer, Boolean> toggles = Reflect.on(response).get("toggleResponses");
-        //MainLogger.getLogger().info("i: "+i+"    toggle index: "+toggles.keySet().toString());
-
-
-        if (add != 0) {
-            plugin.getManager().addEditWindow(p, entity, lines, add);
-            return;
-        }
-
-        Holograms.update(entity.getHologramId(), lines);*/
     }
 
     private void handleMainResponse(Player p, HologramEntity entity, FormResponseSimple response) {
@@ -85,6 +61,15 @@ public class FormWindowHandler {
                 break;
             case 1:
                 plugin.getManager().addTextWindow(p, entity);
+                break;
+            case 2:
+                plugin.getManager().addGridWindow(p, entity);
+                break;
+            case 3:
+                entity.close();
+                p.sendMessage(TextFormat.GREEN + "Hologram removed");
+
+                plugin.editors.remove(p.getId());
                 break;
         }
     }
@@ -98,31 +83,8 @@ public class FormWindowHandler {
         double offsetY = getDouble(response.getInputResponse(7), 0);
         double offsetZ = getDouble(response.getInputResponse(8), 0);
 
-        boolean remove = response.getToggleResponse(10);
-
-        int updateInterval = getInt(response.getInputResponse(11), entity.getHologram().getUpdateInterval());
+        int updateInterval = getInt(response.getInputResponse(10), entity.getHologram().getUpdateInterval());
         entity.getHologram().setUpdateInterval(updateInterval);
-
-        boolean grid = response.getToggleResponse(13);
-        int gridColSpace = getInt(response.getInputResponse(14), 20);
-        String gridSource = response.getInputResponse(15);
-        boolean gridHeader = response.getToggleResponse(16);
-
-        Hologram.GridSettings gridSettings = entity.getHologram().getGridSettings();
-
-        boolean gridUpdate = gridSettings.setEnabled(grid);
-        boolean gridSpaceUpdate = gridSettings.setGridColSpace(gridColSpace);
-
-        boolean gridSourceUpdate = gridSettings.setGridSource(plugin.getGridSource(gridSource));
-        boolean gridHeaderUpdate = gridSettings.setHeader(gridHeader);
-
-        if (remove) {
-            entity.close();
-            p.sendMessage(TextFormat.GREEN + "Hologram removed");
-
-            plugin.editors.remove(p.getId());
-            return;
-        }
 
         if (x != entity.x || y != entity.y || z != entity.z) {
             entity.moveTo(x, y, z);
@@ -133,9 +95,28 @@ public class FormWindowHandler {
             p.sendMessage(TextFormat.GREEN + "Hologram moved");
             plugin.editors.remove(p.getId());
         }
+    }
+
+    private void handleGridResponse(Player p, HologramEntity entity, FormResponseCustom response) {
+        boolean grid = response.getToggleResponse(0);
+        int gridColSpace = getInt(response.getInputResponse(1), 20);
+        String gridSource = response.getInputResponse(2);
+        boolean gridHeader = response.getToggleResponse(3);
+
+        Hologram.GridSettings gridSettings = entity.getHologram().getGridSettings();
+
+        boolean gridUpdate = gridSettings.setEnabled(grid);
+        boolean gridSpaceUpdate = gridSettings.setGridColSpace(gridColSpace);
+
+        boolean gridSourceUpdate = gridSettings.setGridSource(plugin.getGridSource(gridSource));
+        boolean gridHeaderUpdate = gridSettings.setHeader(gridHeader);
 
         if (gridUpdate || gridSpaceUpdate || gridSourceUpdate || gridHeaderUpdate) {
             entity.getHologram().update();
+
+            if ((gridSourceUpdate || gridHeaderUpdate) && gridSettings.getSource() != null && gridSettings.isEnabled()) {
+                gridSettings.getSource().forceReload();
+            }
         }
     }
 

@@ -8,6 +8,7 @@ import com.creeperface.nukkit.placeholderapi.api.util.MatchedGroup;
 import com.creeperface.nukkit.placeholderapi.api.util.UtilsKt;
 import gt.creeperface.holograms.Holograms;
 import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
+import lombok.ToString;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -123,6 +124,7 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
         return true;
     }
 
+    @ToString(callSuper = true)
     public static class MatchedPlaceholderLocal extends MatchedPlaceholder {
 
         private final MatchedGroup group;

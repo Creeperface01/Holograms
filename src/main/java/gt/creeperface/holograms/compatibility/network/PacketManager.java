@@ -1,7 +1,10 @@
 package gt.creeperface.holograms.compatibility.network;
 
+import gt.creeperface.holograms.compatibility.network.packet.EntityAddPacket;
 import gt.creeperface.holograms.compatibility.network.packet.NukkitGTMovePacket;
 import gt.creeperface.holograms.compatibility.network.packet.NukkitXMovePacket;
+import gt.creeperface.holograms.compatibility.network.packet.PlayerAddPacket;
+import gt.creeperface.holograms.compatibility.network.packet.generic.AbstractAddPacket;
 import gt.creeperface.holograms.compatibility.network.packet.generic.AbstractMovePacket;
 import lombok.experimental.UtilityClass;
 
@@ -38,6 +41,14 @@ public final class PacketManager {
         }
 
         return null;
+    }
+
+    public static AbstractAddPacket getAddPacket(int protocol) {
+        if (protocol <= 113) {
+            return new PlayerAddPacket();
+        }
+
+        return new EntityAddPacket();
     }
 
     private enum Version {
