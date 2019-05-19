@@ -2,16 +2,15 @@ package gt.creeperface.holograms.grid;
 
 import cn.nukkit.utils.TextFormat;
 import gt.creeperface.holograms.Hologram;
+import gt.creeperface.holograms.Hologram.GridSettings.ColumnTemplate;
 import gt.creeperface.holograms.HologramConfiguration;
 import gt.creeperface.holograms.api.grid.source.GridSource;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.text.Normalizer;
+import java.util.*;
 
 /**
  * @author CreeperFace
@@ -20,7 +19,6 @@ import java.util.List;
 public final class GridFormatter {
 
     private static final int SPACE_WIDTH = 4;
-    private static final double ASCII_SIZE_MULTIPLIER = 2;
 
     public static List<String> process(List<String> lines, Hologram.GridSettings settings) {
         List<List<String>> split = new ArrayList<>();
@@ -30,11 +28,12 @@ public final class GridFormatter {
         boolean[] unicode = new boolean[lines.size()];
 
         int excludedIndex = 0;
+        boolean excluder = false;
         for (String line : lines) {
             excludedIndex++;
 
-            if (source || line.startsWith(HologramConfiguration.getGridExcluder())) {
-                excluded.put(excludedIndex - 1, line);
+            if (source || (excluder = line.startsWith(HologramConfiguration.getGridExcluder()))) {
+                excluded.put(excludedIndex - 1, excluder ? line.substring(HologramConfiguration.getGridExcluder().length()) : line);
                 continue;
             }
 
@@ -55,16 +54,46 @@ public final class GridFormatter {
     }
 
     private static List<String> processSource(List<List<String>> lines, Int2ObjectMap<String> excluded, boolean[] unicode, Hologram.GridSettings settings) {
-        GridSource source = settings.getSource();
+        GridSource<Object> source = settings.getSource();
+        source.startReading();
 
-        if (settings.isHeader() && source.supportsHeader()) {
-            lines.add(source.getHeader());
-            lines.add(Collections.emptyList());
-        }
+        try {
+            if (settings.isHeader() && source.supportsHeader()) {
+                lines.add(source.getHeader());
+                lines.add(Collections.emptyList());
+            }
 
-        source.resetOffset();
-        while (source.hasNextRow()) {
-            lines.add(source.nextRow());
+            source.resetOffset();
+
+            List<ColumnTemplate> templates = settings.getColumnTemplates();
+
+            while (source.hasNextRow()) {
+                List<Object> columns = source.nextRow();
+                List<String> replaced = new ArrayList<>(columns.size());
+
+                for (int i = 0; i < columns.size(); i++) {
+                    String col = Objects.toString(columns.get(i));
+
+                    if (settings.isNormalize()) {
+                        col = Normalizer
+                                .normalize(col, Normalizer.Form.NFD)
+                                .replaceAll("[^\\p{ASCII}]", "");
+                    }
+
+                    ColumnTemplate template = templates.size() > i ? templates.get(i) : null;
+
+                    if (template == null) {
+                        replaced.add(col);
+                        continue;
+                    }
+
+                    replaced.add(template.replace(col));
+                }
+
+                lines.add(replaced);
+            }
+        } finally {
+            source.stopReading();
         }
 
         boolean[] unicode2 = new boolean[lines.size()];
@@ -90,27 +119,35 @@ public final class GridFormatter {
             //get lengths of separate columns
             ColumnEntry[] cols = line.stream().map(column -> {
                 int len = 0;
-                boolean wasColor = false;
+                boolean expectFormat = false;
                 boolean bold = false;
                 boolean unicodeLine = unicode[index];
 
-                for (char c : column.toCharArray()) {
+                char[] chars = column.toCharArray();
+
+                for (int j = 0; j < chars.length; j++) {
+                    char c = chars[j];
+
                     if (c == '§') {
-                        wasColor = true;
+                        if (j == chars.length - 1) { //last char, isn't rendered
+                            break;
+                        }
+
+                        expectFormat = true;
                         continue;
                     }
 
-                    if (wasColor) {
-                        wasColor = false;
+                    if (expectFormat) {
+                        expectFormat = false;
 
                         if (c == 'l' || c == 'L') { //bold
                             bold = true;
+                            continue;
                         } else if (c == 'r' || c == 'R') { //reset
                             bold = false;
+                            continue;
                         } else if (TextFormat.getByChar(c) != null) {
                             continue;
-                        } else {
-                            len += CharactersTable.lengthOf('§', unicodeLine);
                         }
                     }
 
@@ -148,23 +185,28 @@ public final class GridFormatter {
             lineCols.add(cols);
         }
 
+//        for (ColumnEntry[] lineCol : lineCols) {
+//            MainLogger.getLogger().info(Arrays.deepToString(lineCol));
+//        }
+
         List<String> newLines = new ArrayList<>();
         int excludedIndex = 0;
 
         char[] columnSpaces = new char[settings.getColumnSpace() / SPACE_WIDTH];
         Arrays.fill(columnSpaces, ' ');
 
+        String excludedLine;
+
         //format columns
         for (int ci = 0; ci < lineCols.size(); ci++) {
             ColumnEntry[] lineCol = lineCols.get(ci);
-
-            String excludedLine;
 
             while ((excludedLine = excluded.get(excludedIndex++)) != null) {
                 newLines.add(excludedLine);
             }
 
             StringBuilder lineBuilder = new StringBuilder();
+
             double diff = 0;
 
             for (int i = 0; i < lineCol.length; i++) {
@@ -179,11 +221,16 @@ public final class GridFormatter {
                 int spaces = (int) Math.round(expectedLength / SPACE_WIDTH);
 
                 //space chars to append
-                char[] spaceChars = new char[spaces == 1 && diff > 0 ? 1 : spaces / 2];
+                char[] spaceChars = new char[spaces / 2];
                 Arrays.fill(spaceChars, ' ');
 
+                //(diff > 0 = the actual length is lower than expected) so we append one space to increase difference
+                if (spaceChars.length == 0 && diff > 0) {
+                    lineBuilder.append(' ');
+                }
+
                 //save diff after rounding by space length
-                diff = (expectedLength - (spaces * SPACE_WIDTH)) + ((spaces % 2) * SPACE_WIDTH);
+                diff = (expectedLength - (spaces * SPACE_WIDTH)) + (spaces > 2 ? ((spaces % 2) * SPACE_WIDTH) : 0);
 
                 lineBuilder.append(spaceChars);
                 lineBuilder.append(entry.column);
@@ -200,6 +247,58 @@ public final class GridFormatter {
 
             newLines.add(line);
         }
+
+        while ((excludedLine = excluded.get(excludedIndex++)) != null) {
+            newLines.add(excludedLine);
+        }
+
+//        for (String newLine : newLines) {
+//            StringBuilder logBuilder = new StringBuilder();
+//
+//            boolean expectFormat = false;
+//            boolean bold = false;
+//
+//            char[] chars = newLine.toCharArray();
+//            for (int j = 0; j < chars.length; j++) {
+//                char c = chars[j];
+//
+//                if (c == '§') {
+//                    if (j == chars.length - 1) { //last char, isn't rendered
+//                        break;
+//                    }
+//
+//                    expectFormat = true;
+//                    continue;
+//                }
+//
+//                if (expectFormat) {
+//                    expectFormat = false;
+//
+//                    if (c == 'l' || c == 'L') { //bold
+//                        bold = true;
+//                        continue;
+//                    } else if (c == 'r' || c == 'R') { //reset
+//                        bold = false;
+//                        continue;
+//                    } else if (TextFormat.getByChar(c) != null) {
+//                        continue;
+//                    }
+//                }
+//
+//                int len = CharactersTable.lengthOf(c, false);
+//
+//                if (bold) {
+//                    len++;
+//                }
+//
+//                char[] chrs = new char[len];
+//                Arrays.fill(chrs, c);
+//
+//                logBuilder.append(chrs);
+//            }
+//
+//            MainLogger.getLogger().info(logBuilder.toString());
+//        }
 
         return newLines;
     }

@@ -66,7 +66,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 
     @Override
     public void run() {
-        while (Server.getInstance().isRunning()) {
+        while (Server.getInstance().isRunning() && plugin.isEnabled()) {
 
             try {
                 while (true) {
@@ -174,16 +174,19 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         List<List<String>> trans = addPlaceHolders(updateEntry.translations, updateEntry.getPlaceholders(), updateEntry.matchedPlaceholders);
 
         Hologram.GridSettings grid = updateEntry.getGrid();
-        if (trans.isEmpty() && (!grid.isEnabled() || grid.getSource() == null)) {
+        if ((trans.isEmpty() || trans.get(0).isEmpty()) && (!grid.isEnabled() || grid.getSource() == null || !grid.getSource().isLoaded())) {
             return;
         }
 
         if (grid.isEnabled()) {
+            if (trans.isEmpty()) {
+                trans.add(new ArrayList<>());
+            }
+
             for (int i = 0; i < trans.size(); i++) {
                 trans.set(i, GridFormatter.process(trans.get(i), grid));
             }
         }
-
 
         //MainLogger.getLogger().info("origin size: "+updateEntry.translations.size()+"   after length: "+trans.size());
 
@@ -322,9 +325,11 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 //            MainLogger.getLogger().info("entry packets: "+entry.packets);
         }
 
-        for (PlayerEntry playerEntry : updateEntry.getPlayers()) {
-            if (playerEntry.language < 0 || playerEntry.language >= packetsEntries.size()) {
-                packetsEntries.get(0).players.add(playerEntry.player);
+        if (!packetsEntries.isEmpty()) {
+            for (PlayerEntry playerEntry : updateEntry.getPlayers()) {
+                if (playerEntry.language < 0 || playerEntry.language >= packetsEntries.size()) {
+                    packetsEntries.get(0).players.add(playerEntry.player);
+                }
             }
         }
 
@@ -455,6 +460,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 
         List<List<String>> rawTranslations = updateEntry.translations;
         Hologram.GridSettings grid = updateEntry.getGrid();
+
         if (rawTranslations.isEmpty() && (!grid.isEnabled() || grid.getSource() == null)) {
             return packetEntry;
         }
@@ -464,8 +470,14 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             lang = 0;
         }
 
-        List<String> old = rawTranslations.get(lang);
-        List<String> lines = replaceTranslation(old, updateEntry.getPlayerPlaceholders().get(playerEntry.player.getId()), updateEntry.matchedPlaceholders.get(lang));
+        List<String> lines;
+
+        if (!rawTranslations.isEmpty()) {
+            List<String> old = rawTranslations.get(lang);
+            lines = replaceTranslation(old, updateEntry.getPlayerPlaceholders().get(playerEntry.player.getId()), updateEntry.matchedPlaceholders.get(lang));
+        } else {
+            lines = new ArrayList<>();
+        }
 
         if (grid.isEnabled()) {
             lines = GridFormatter.process(lines, grid);
@@ -602,7 +614,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             AddEntityPacket pk = new AddEntityPacket();
             pk.entityUniqueId = id;
             pk.entityRuntimeId = id;
-            pk.type = 61; //
+            pk.type = 61; //armorstand
             pk.x = (float) pos.x;
             pk.y = baseY;
             pk.z = (float) pos.z;
@@ -681,7 +693,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 //            }
 //        }
 
-        int transSize = translations.get(0).size();
+        int transSize = translations.isEmpty() ? 0 : translations.get(0).size();
 
         if (gridSettings.isEnabled() && gridSettings.getSource() != null) {
             transSize += gridSettings.getSource().getLimit();

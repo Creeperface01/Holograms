@@ -7,13 +7,17 @@ import cn.nukkit.form.element.ElementLabel;
 import cn.nukkit.form.element.ElementToggle;
 import cn.nukkit.form.window.FormWindowCustom;
 import cn.nukkit.form.window.FormWindowSimple;
+import cn.nukkit.utils.MainLogger;
 import gt.creeperface.holograms.Hologram;
+import gt.creeperface.holograms.Hologram.GridSettings.ColumnTemplate;
 import gt.creeperface.holograms.Holograms;
+import gt.creeperface.holograms.api.grid.source.GridSource;
 import gt.creeperface.holograms.entity.HologramEntity;
 import gt.creeperface.holograms.util.Values;
 import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -140,16 +144,47 @@ public class FormWindowManager {
     }
 
     public void addGridWindow(Player p, HologramEntity entity) {
+        FormWindowSimple window = new FormWindowSimple("Hologram: " + entity.getHologramId(), "");
+        window.addButton(new ElementButton("General grid settings"));
+
+        if (entity.getHologram().getGridSettings().getSource() != null) {
+            window.addButton(new ElementButton("Column templates settings"));
+        }
+
+        p.showFormWindow(window, Values.GRID_WINDOW_ID);
+    }
+
+    public void addGridColumnWindow(Player p, HologramEntity entity) {
+        FormWindowCustom window = new FormWindowCustom("Hologram: " + entity.getHologramId());
+
+        Iterator<Hologram.GridSettings.ColumnTemplate> templateIterator = entity.getHologram().getGridSettings().getColumnTemplates().iterator();
+
+        int i = 0;
+        while (templateIterator.hasNext()) {
+            Hologram.GridSettings.ColumnTemplate template = templateIterator.next();
+
+            window.addElement(new ElementInput(template.name != null ? template.name : "^^Column " + i++, "", template.template));
+
+//            if(templateIterator.hasNext()) {
+//                window.addElement(new ElementLabel(""));
+//            }
+        }
+
+        p.showFormWindow(window, Values.GRID_COLUMNS_ID);
+    }
+
+    public void addGridGeneralWindow(Player p, HologramEntity entity) {
         FormWindowCustom window = new FormWindowCustom("Hologram: " + entity.getHologramId());
 
         Hologram.GridSettings grid = entity.getHologram().getGridSettings();
 
         window.addElement(new ElementToggle("Display as grid", grid.isEnabled()));
+        window.addElement(new ElementToggle("Normalize data", grid.isNormalize()));
         window.addElement(new ElementInput("Space between columns", "value", grid.getColumnSpace() + ""));
-        window.addElement(new ElementInput("Grid data source", "identitifer", grid.getSource() != null ? grid.getSource().getName() : ""));
+        window.addElement(new ElementInput("Grid data source", "identifier", grid.getSource() != null ? grid.getSource().getName() : ""));
         window.addElement(new ElementToggle("Add grid header", grid.isHeader()));
 
-        p.showFormWindow(window, Values.GRID_WINDOW_ID);
+        p.showFormWindow(window, Values.GRID_GENERAL_ID);
     }
 
     public void addMainWindow(Player p, HologramEntity entity) {
@@ -158,6 +193,23 @@ public class FormWindowManager {
         window.addButton(new ElementButton("Text settings"));
         window.addButton(new ElementButton("Grid settings"));
         window.addButton(new ElementButton("Remove hologram"));
+
+
+        GridSource<Object> source = entity.getHologram().getGridSettings().getSource();
+
+        if (source != null && entity.getHologram().getGridSettings().getColumnTemplates().isEmpty()) {
+            source.prepareColumnTemplates().whenComplete((templates, e) -> {
+                if (e != null) {
+                    MainLogger.getLogger().logException(new RuntimeException(e));
+                    return;
+                }
+
+                List<ColumnTemplate> columnTemplates = entity.getHologram().getGridSettings().getColumnTemplates();
+
+                columnTemplates.clear();
+                columnTemplates.addAll(templates);
+            });
+        }
 
         p.showFormWindow(window, Values.WINDOW_ID);
     }

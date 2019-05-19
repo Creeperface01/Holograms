@@ -244,13 +244,16 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
     @AllArgsConstructor
     @NoArgsConstructor
     @Getter
+    @ToString
     public static class GridSettings implements Cloneable {
 
         private boolean enabled = false;
-        private GridSource source = null;
+        private boolean normalize = false;
+        private GridSource<Object> source = null;
         private int columnSpace = 20;
         private boolean header = false;
 
+        private List<ColumnTemplate> columnTemplates = new ArrayList<>();
 
         public boolean setEnabled(boolean enabled) {
             if (enabled == this.enabled) {
@@ -270,7 +273,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
             return true;
         }
 
-        public boolean setGridSource(GridSource gridSource) {
+        public boolean setGridSource(GridSource<Object> gridSource) {
             if (Objects.equals(gridSource, source)) {
                 return false;
             }
@@ -288,12 +291,44 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
             return true;
         }
 
+        public boolean setNormalize(boolean normalize) {
+            if (this.normalize == normalize) {
+                return false;
+            }
+
+            this.normalize = normalize;
+            return true;
+        }
+
         @Override
         public GridSettings clone() {
             try {
                 return (GridSettings) super.clone();
             } catch (CloneNotSupportedException e) {
                 throw new RuntimeException(e);
+            }
+        }
+
+        @RequiredArgsConstructor
+        @Getter
+        @ToString
+        public static class ColumnTemplate {
+
+            public final String name;
+            public final String template;
+
+            public final int start;
+            public final int end;
+
+            public String replace(String column) {
+                if (start < 0 || end < 0) {
+                    return column;
+                }
+
+                StringBuilder builder = new StringBuilder(template);
+                builder.replace(start, end, column);
+
+                return builder.toString();
             }
         }
     }

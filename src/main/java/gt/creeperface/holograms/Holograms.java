@@ -31,6 +31,7 @@ import gt.creeperface.holograms.grid.source.PlaceholderGridSource;
 import gt.creeperface.holograms.placeholder.DefaultPlaceholderAdapter;
 import gt.creeperface.holograms.placeholder.PlaceholderAPIAdapter;
 import gt.creeperface.holograms.task.HologramUpdater;
+import gt.creeperface.holograms.util.Values;
 import lombok.Getter;
 
 import java.io.File;
@@ -46,6 +47,8 @@ import java.util.stream.Collectors;
  * @author CreeperFace
  */
 public class Holograms extends HologramAPI implements Listener {
+
+    private static boolean loaded = false;
 
     private final Object hologramLock = new Object();
 
@@ -73,10 +76,12 @@ public class Holograms extends HologramAPI implements Listener {
     private PlaceholderAdapter placeholderAdapter;
 
     private Map<String, BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource>> gridSources = new HashMap<>();
-    private Map<String, Supplier<GridSource>> gridSourceInstances = new HashMap<>();
+    private Map<String, Supplier<GridSource<Object>>> gridSourceInstances = new HashMap<>();
 
     @Override
     public void onLoad() {
+        if (loaded) return;
+
         getLogger().info("Loading characters...");
         loadCharsWidths();
 
@@ -99,12 +104,12 @@ public class Holograms extends HologramAPI implements Listener {
         //init grid sources
         getLogger().info("Registering default grid sources");
         registerDefaultGridSources();
-
-        hologramUpdater.start();
     }
 
     @Override
     public void onEnable() {
+        if (loaded) return;
+
         getLogger().info("Loading grid config...");
         registerGridSourceInstances();
 
@@ -112,9 +117,12 @@ public class Holograms extends HologramAPI implements Listener {
         getServer().getPluginManager().addPermission(new Permission("hologram.use", "Main holograms permission"));
 
         getServer().getPluginManager().registerEvents(this, this);
-        getServer().getScheduler().scheduleDelayedRepeatingTask(this, () -> {
-            saveHolograms(true);
-        }, this.configuration.getSaveInterval() * 60 * 20, this.configuration.getSaveInterval() * 60 * 20);
+        getServer().getScheduler().scheduleDelayedRepeatingTask(
+                this,
+                () -> saveHolograms(true),
+                this.configuration.getSaveInterval() * 60 * 20,
+                this.configuration.getSaveInterval() * 60 * 20
+        );
 
         getServer().getScheduler().scheduleRepeatingTask(this, new Task() {
             @Override
@@ -131,6 +139,10 @@ public class Holograms extends HologramAPI implements Listener {
 
         getLogger().info("Loading holograms");
         reloadHolograms();
+
+        hologramUpdater.start();
+
+        loaded = true;
     }
 
     @Override
@@ -155,9 +167,24 @@ public class Holograms extends HologramAPI implements Listener {
 
                 Hologram.GridSettings grid = hologram.getGridSettings();
                 hl.set("grid", grid.isEnabled());
+                hl.set("grid_normalize", grid.isNormalize());
                 hl.set("grid_col_space", grid.getColumnSpace());
                 hl.set("grid_source", grid.getSource() != null ? grid.getSource().getName() : "");
                 hl.set("grid_header", grid.isHeader());
+
+                hl.set("column_templates", grid.getColumnTemplates().stream()
+                        .map((template) -> {
+                            Map<String, Object> data = new HashMap<>();
+
+                            if (template.name != null) {
+                                data.put("name", template.name);
+                            }
+
+                            data.put("value", template.template);
+
+                            return data;
+                        }).collect(Collectors.toList())
+                );
 
                 holograms.set(hologram.getName(), hl);
             }
@@ -199,10 +226,23 @@ public class Holograms extends HologramAPI implements Listener {
                 int gridColSpace = section.getInt("grid_col_space", 20);
                 String gridSource = section.getString("grid_source", "");
                 boolean gridHeader = section.getBoolean("grid_header", false);
+                boolean normalize = section.getBoolean("grid_normalize", false);
 
                 checkLineCount(trans, id);
 
-                Hologram hologram = new Hologram(id, trans, new Hologram.GridSettings(grid, getGridSource(gridSource), gridColSpace, gridHeader));
+                List<Map<String, Object>> colTemplates = section.getList("column_templates", Collections.emptyList());
+
+                List<Hologram.GridSettings.ColumnTemplate> templates = colTemplates.stream()
+                        .map((data) -> {
+                            String name = Objects.toString(data.get("name"));
+                            String template = Objects.toString(data.get("value"));
+
+                            int dataIndex = template.indexOf(Values.COLUMN_TEMPLATE_PLACEHOLDER);
+
+                            return new Hologram.GridSettings.ColumnTemplate(name, template, dataIndex, dataIndex + Values.COLUMN_TEMPLATE_PLACEHOLDER.length());
+                        }).collect(Collectors.toList());
+
+                Hologram hologram = new Hologram(id, trans, new Hologram.GridSettings(grid, normalize, getGridSource(gridSource), gridColSpace, gridHeader, templates));
                 hologram.setUpdateInterval(updateInterval);
 
                 map.put(id, hologram);
@@ -283,7 +323,7 @@ public class Holograms extends HologramAPI implements Listener {
         Player p = e.getPlayer();
         FormResponse response = e.getResponse();
 
-        this.handler.handleResponse(p, e.getFormID(), response);
+        this.handler.handleResponse(p, e.getFormID(), e.getWindow(), response);
     }
 
     @EventHandler
@@ -517,8 +557,8 @@ public class Holograms extends HologramAPI implements Listener {
         return true;
     }
 
-    public GridSource getGridSource(String name) {
-        Supplier<GridSource> source = this.gridSourceInstances.get(name);
+    public GridSource<Object> getGridSource(String name) {
+        Supplier<GridSource<Object>> source = this.gridSourceInstances.get(name);
 
         if (source != null) {
             return source.get();

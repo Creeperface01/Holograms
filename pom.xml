@@ -17,7 +17,7 @@
         <repository>
             <id>releases</id>
             <name>nukkitx-releases</name>
-            <url>https://repo.nukkitx.com/release</url>
+            <url>http://repo.nukkitx.com/main/</url>
         </repository>
     </repositories>
 

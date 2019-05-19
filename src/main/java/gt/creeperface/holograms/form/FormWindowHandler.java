@@ -1,18 +1,26 @@
 package gt.creeperface.holograms.form;
 
 import cn.nukkit.Player;
+import cn.nukkit.form.element.Element;
+import cn.nukkit.form.element.ElementInput;
 import cn.nukkit.form.response.FormResponse;
 import cn.nukkit.form.response.FormResponseCustom;
 import cn.nukkit.form.response.FormResponseSimple;
+import cn.nukkit.form.window.FormWindow;
+import cn.nukkit.form.window.FormWindowCustom;
+import cn.nukkit.utils.MainLogger;
 import cn.nukkit.utils.TextFormat;
 import gt.creeperface.holograms.Hologram;
+import gt.creeperface.holograms.Hologram.GridSettings.ColumnTemplate;
 import gt.creeperface.holograms.Holograms;
+import gt.creeperface.holograms.api.grid.source.GridSource;
 import gt.creeperface.holograms.entity.HologramEntity;
 import gt.creeperface.holograms.util.Values;
 import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author CreeperFace
@@ -23,7 +31,7 @@ public class FormWindowHandler {
 
     private Holograms plugin;
 
-    public void handleResponse(Player p, int id, FormResponse response) {
+    public void handleResponse(Player p, int id, FormWindow window, FormResponse response) {
         if (response == null) {
             plugin.editors.remove(p.getId());
             return;
@@ -48,7 +56,13 @@ public class FormWindowHandler {
                     handleTextResponse(p, entity, (FormResponseCustom) response);
                     break;
                 case Values.GRID_WINDOW_ID:
-                    handleGridResponse(p, entity, (FormResponseCustom) response);
+                    handleGridResponse(p, entity, (FormResponseSimple) response);
+                    break;
+                case Values.GRID_GENERAL_ID:
+                    handleGridGeneralResponse(p, entity, (FormResponseCustom) response);
+                    break;
+                case Values.GRID_COLUMNS_ID:
+                    handleGridColumnResponse(p, entity, (FormWindowCustom) window, (FormResponseCustom) response);
                     break;
             }
         }
@@ -97,24 +111,127 @@ public class FormWindowHandler {
         }
     }
 
-    private void handleGridResponse(Player p, HologramEntity entity, FormResponseCustom response) {
+    private void handleGridResponse(Player p, HologramEntity entity, FormResponseSimple response) {
+        switch (response.getClickedButtonId()) {
+            case 0: //general
+                plugin.getManager().addGridGeneralWindow(p, entity);
+                break;
+            case 1: //columns
+                plugin.getManager().addGridColumnWindow(p, entity);
+                break;
+        }
+    }
+
+    private void handleGridGeneralResponse(Player p, HologramEntity entity, FormResponseCustom response) {
         boolean grid = response.getToggleResponse(0);
-        int gridColSpace = getInt(response.getInputResponse(1), 20);
-        String gridSource = response.getInputResponse(2);
-        boolean gridHeader = response.getToggleResponse(3);
+        boolean normalize = response.getToggleResponse(1);
+        int gridColSpace = getInt(response.getInputResponse(2), 20);
+        String gridSource = response.getInputResponse(3);
+        boolean gridHeader = response.getToggleResponse(4);
 
         Hologram.GridSettings gridSettings = entity.getHologram().getGridSettings();
 
         boolean gridUpdate = gridSettings.setEnabled(grid);
         boolean gridSpaceUpdate = gridSettings.setGridColSpace(gridColSpace);
 
-        boolean gridSourceUpdate = gridSettings.setGridSource(plugin.getGridSource(gridSource));
-        boolean gridHeaderUpdate = gridSettings.setHeader(gridHeader);
+        GridSource<Object> sourceInstance = plugin.getGridSource(gridSource);
 
-        if (gridUpdate || gridSpaceUpdate || gridSourceUpdate || gridHeaderUpdate) {
+        boolean gridSourceUpdate = gridSettings.setGridSource(sourceInstance);
+        boolean gridHeaderUpdate = gridSettings.setHeader(gridHeader);
+        boolean normalizeUpdate = gridSettings.setNormalize(normalize);
+
+        if (sourceInstance != null && gridSettings.getColumnTemplates().isEmpty()) {
+            sourceInstance.prepareColumnTemplates().whenComplete((templates, e) -> {
+                if (e != null) {
+                    MainLogger.getLogger().logException(new RuntimeException(e));
+                    return;
+                }
+
+                List<ColumnTemplate> columnTemplates = entity.getHologram().getGridSettings().getColumnTemplates();
+
+                columnTemplates.clear();
+                columnTemplates.addAll(templates);
+            });
+        }
+
+        if (gridUpdate || gridSpaceUpdate || gridSourceUpdate || gridHeaderUpdate || normalizeUpdate) {
             entity.getHologram().update();
 
+            GridSource source = gridSettings.getSource();
+
             if ((gridSourceUpdate || gridHeaderUpdate) && gridSettings.getSource() != null && gridSettings.isEnabled()) {
+                source.forceReload();
+            }
+        }
+    }
+
+    private void handleGridColumnResponse(Player p, HologramEntity entity, FormWindowCustom window, FormResponseCustom response) {
+        int i = 0;
+//        boolean expectGap = false;
+
+        List<Element> winElements = window.getElements();
+        List<Hologram.GridSettings.ColumnTemplate> templates = new ArrayList<>(winElements.size());
+
+        while (true) {
+            String templateString = response.getInputResponse(i++);
+
+            if (templateString == null) {
+                break;
+            }
+
+//            if (templateString == null) {
+//                if (!expectGap) {
+//                    break;
+//                }
+//
+//                continue;
+//            }
+
+//            expectGap = true;
+
+            Element el = winElements.get(i - 1);
+
+            if (!(el instanceof ElementInput)) {
+                continue;
+            }
+
+            ElementInput input = (ElementInput) el;
+
+            int index = templateString.indexOf(Values.COLUMN_TEMPLATE_PLACEHOLDER);
+            int end = index + Values.COLUMN_TEMPLATE_PLACEHOLDER.length();
+            String label = input.getText();
+
+            if (label.startsWith("^^")) {
+                label = null;
+            }
+
+            templates.add(new Hologram.GridSettings.ColumnTemplate(label, templateString, index, end));
+        }
+
+        List<Hologram.GridSettings.ColumnTemplate> temps = entity.getHologram().getGridSettings().getColumnTemplates();
+
+        if (temps.size() != templates.size()) {
+            p.sendMessage(TextFormat.RED + "Column count doesn't match. Was the hologram changed recently?");
+            return;
+        }
+
+        boolean hasUpdate = false;
+        for (int j = 0; j < templates.size(); j++) {
+            if (!Objects.equals(templates.get(j), temps.get(j))) {
+                hasUpdate = true;
+                break;
+            }
+        }
+
+        if (hasUpdate) {
+            temps.clear();
+            temps.addAll(templates);
+
+            entity.getHologram().update();
+
+            Hologram.GridSettings gridSettings = entity.getHologram().getGridSettings();
+
+            if (gridSettings.getSource() != null && gridSettings.isEnabled()) {
                 gridSettings.getSource().forceReload();
             }
         }

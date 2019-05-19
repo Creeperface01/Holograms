@@ -10,11 +10,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author CreeperFace
  */
-public abstract class AbstractGridSource<T extends Object> implements GridSource<T> {
+public abstract class AbstractGridSource<T> implements GridSource<T> {
 
     @Getter
     private final String name;
@@ -22,7 +24,7 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
     @Getter
     private final SourceParameters parameters;
 
-    private List<List<T>> source = new ArrayList<>();
+    private volatile List<List<T>> source = new ArrayList<>();
 
     @Getter
     private int currentRow = -1;
@@ -34,6 +36,8 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
     private long lastLoad;
 
     private boolean forceReload = false;
+
+    private final Lock readLock = new ReentrantLock();
 
     public AbstractGridSource(SourceParameters parameters) {
         Preconditions.checkNotNull(parameters, "null parameters");
@@ -106,22 +110,25 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
     }
 
     protected void load(List<List<T>> data) {
-        this.currentColumn = -1;
-        this.currentRow = -1;
+        resetOffset();
         this.source = data;
     }
 
     @Override
-    public void load() {
+    public synchronized void load() {
         long time = System.currentTimeMillis();
 
         if (!forceReload && ((double) (time - lastLoad)) / 1000 < this.parameters.refresh) {
             return;
         }
 
+        readLock.lock();
+
         lastLoad = time;
         forceReload = false;
         GridSource.super.load();
+
+        readLock.unlock();
     }
 
     @Override
@@ -169,6 +176,17 @@ public abstract class AbstractGridSource<T extends Object> implements GridSource
         GridSource object = (GridSource) obj;
 
         return object.getIdentifier().equals(this.getIdentifier()) && object.getName().equals(this.getName());
+    }
+
+    @Override
+    public void startReading() {
+        readLock.lock();
+        resetOffset();
+    }
+
+    @Override
+    public void stopReading() {
+        readLock.unlock();
     }
 
     @AllArgsConstructor
