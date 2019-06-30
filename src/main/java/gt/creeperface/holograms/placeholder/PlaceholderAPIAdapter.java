@@ -26,11 +26,11 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
     @SuppressWarnings("unchecked")
     public PlaceholderAPIAdapter() {
         Holograms plugin = Holograms.getInstance();
-        Placeholder placeholder = api.getPlaceholder("lang");
-
-        if (placeholder != null) {
-            placeholder.addListener(plugin, (oldVal, newVal, p) -> plugin.onLanguageChanged(p));
-        }
+//        Placeholder placeholder = api.getPlaceholder("lang");
+//
+//        if (placeholder != null) {
+//            placeholder.addListener(plugin, (oldVal, newVal, p) -> plugin.onLanguageChanged(p));
+//        }
     }
 
     @Override

@@ -1,5 +1,5 @@
 name: Holograms
-version: 3.0
+version: 3.1
 api: ["1.0.0"]
 main: gt.creeperface.holograms.Holograms
 description: Holograms plugin

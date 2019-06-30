@@ -1,6 +1,6 @@
 #grids:
 #  mysqlgrid: #name of the grid
-#    source: "mysql" #source type
+#    source: mysql #source type
 #    offset: 0 #data row offset in the grid source
 #    limit: 10 #maximal count of rows loaded/displayed
 #    refresh: 10 #the minimal interval in seconds when source will reload the data

@@ -744,7 +744,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         List<PlayerEntry> playersData = new ArrayList<>(players.size());
 
         for (Player p : players) {
-            playersData.add(new PlayerEntry(p, plugin.getPlaceholderAdapter().getLanguage(p)));
+            playersData.add(new PlayerEntry(p, plugin.getLanguage(p)));
         }
 
         GridSource gridSource = gridSettings.getSource();

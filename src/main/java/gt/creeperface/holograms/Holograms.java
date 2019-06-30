@@ -33,6 +33,7 @@ import gt.creeperface.holograms.placeholder.PlaceholderAPIAdapter;
 import gt.creeperface.holograms.task.HologramUpdater;
 import gt.creeperface.holograms.util.Values;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,6 +41,7 @@ import java.lang.reflect.Constructor;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -77,6 +79,9 @@ public class Holograms extends HologramAPI implements Listener {
 
     private Map<String, BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource>> gridSources = new HashMap<>();
     private Map<String, Supplier<GridSource<Object>>> gridSourceInstances = new HashMap<>();
+
+    @Setter
+    private static Function<Player, Integer> languageHandler = null;
 
     @Override
     public void onLoad() {
@@ -621,6 +626,14 @@ public class Holograms extends HologramAPI implements Listener {
         }
 
         return change;
+    }
+
+    public int getLanguage(Player p) {
+        if (languageHandler != null) {
+            return languageHandler.apply(p);
+        } else {
+            return this.placeholderAdapter.getLanguage(p);
+        }
     }
 
     private void loadCharsWidths() {
