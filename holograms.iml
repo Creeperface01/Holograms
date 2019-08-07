@@ -13,5 +13,14 @@
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.projectlombok:lombok:1.16.20" level="project" />
     <orderEntry type="library" name="Maven: cn.nukkit:nukkit:1.0-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: com.creeperface.nukkit.placeholderapi:PlaceholderAPI:1.0-SNAPSHOT" level="project" />
+    <orderEntry type="module-library">
+      <library name="Maven: ru.nukkit.dblib:dblib:0">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib/DbLib.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
   </component>
 </module>

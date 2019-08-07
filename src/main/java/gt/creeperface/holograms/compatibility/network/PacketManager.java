@@ -1,7 +1,6 @@
 package gt.creeperface.holograms.compatibility.network;
 
 import gt.creeperface.holograms.compatibility.network.packet.EntityAddPacket;
-import gt.creeperface.holograms.compatibility.network.packet.NukkitGTMovePacket;
 import gt.creeperface.holograms.compatibility.network.packet.NukkitXMovePacket;
 import gt.creeperface.holograms.compatibility.network.packet.PlayerAddPacket;
 import gt.creeperface.holograms.compatibility.network.packet.generic.AbstractAddPacket;
@@ -33,14 +32,15 @@ public final class PacketManager {
     }
 
     public static AbstractMovePacket getMovePacket() {
-        switch (version) {
-            case NUKKITX:
-                return new NukkitXMovePacket();
-            case GT:
-                return new NukkitGTMovePacket();
-        }
-
-        return null;
+//        switch (version) {
+//            case NUKKITX:
+//                return new NukkitXMovePacket();
+//            case GT:
+//                return new NukkitGTMovePacket();
+//        }
+//
+//        return null;
+        return new NukkitXMovePacket();
     }
 
     public static AbstractAddPacket getAddPacket(int protocol) {
