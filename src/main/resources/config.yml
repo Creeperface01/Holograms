@@ -1,5 +1,5 @@
 #don't change this
-version: 1
+version: 2
 
 #distance between separate lines
 lines_gaps: 0.3
@@ -9,3 +9,10 @@ async_batch: false
 
 #how often should be holograms saved to config (in minutes)
 save_interval: 5
+
+#grid settings
+grid:
+  #separator for grid columns
+  col_separator: ";"
+  #starting sequence for rows that shouldn't be included to the grid
+  excluder: "^^"
