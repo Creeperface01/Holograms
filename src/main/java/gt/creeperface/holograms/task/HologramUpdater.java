@@ -109,7 +109,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 
                     List<AbstractMovePacket> movePackets = new ArrayList<>(reps.size());
 
-                    for (RemoveEntityPacket rep : reps) {
+                    for (RemoveEntityPacket rep : Lists.reverse(reps)) {
                         AbstractMovePacket pk = PacketManager.getMovePacket();
 
                         if (pk == null) {
