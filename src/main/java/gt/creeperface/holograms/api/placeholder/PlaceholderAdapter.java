@@ -1,8 +1,7 @@
 package gt.creeperface.holograms.api.placeholder;
 
 import cn.nukkit.Player;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
+import gt.creeperface.holograms.placeholder.MatchedPlaceholder;
 
 import java.util.Collection;
 import java.util.List;
@@ -11,13 +10,13 @@ import java.util.Map;
 /**
  * @author CreeperFace
  */
-public interface PlaceholderAdapter {
+public interface PlaceholderAdapter<T extends MatchedPlaceholder> {
 
-    Map<Long, Map<String, String>> translatePlaceholders(Collection<String> placeholders, Collection<Player> players);
+    Map<Long, Map<String, String>> translatePlaceholders(Collection<T> placeholders, Collection<Player> players);
 
-    Map<String, String> translatePlaceholders(Collection<String> placeholders);
+    Map<String, String> translatePlaceholders(Collection<T> placeholders);
 
-    boolean containsVisitorSensitivePlaceholder(Collection<String> placeholders);
+    boolean containsVisitorSensitivePlaceholder(Collection<T> placeholders);
 
     int getLanguage(Player p);
 
@@ -25,26 +24,7 @@ public interface PlaceholderAdapter {
 
     Object getValue(String placeholder);
 
-    List<MatchedPlaceholder> matchPlaceholders(String text);
+    List<T> matchPlaceholders(String text);
 
 //    String replaceString(String input, List<MatchedPlaceholder> matched);
-
-    @RequiredArgsConstructor
-    @ToString
-    abstract class MatchedPlaceholder implements Cloneable {
-        public final String name;
-        public final int start;
-        public final int end;
-
-        public int offset = 0;
-
-        @Override
-        public MatchedPlaceholder clone() {
-            try {
-                return (MatchedPlaceholder) super.clone();
-            } catch (CloneNotSupportedException e) {
-                return null;
-            }
-        }
-    }
 }

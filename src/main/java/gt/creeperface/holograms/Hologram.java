@@ -7,8 +7,8 @@ import cn.nukkit.math.Vector3;
 import cn.nukkit.network.protocol.AddEntityPacket;
 import cn.nukkit.network.protocol.RemoveEntityPacket;
 import gt.creeperface.holograms.api.grid.source.GridSource;
-import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 import gt.creeperface.holograms.entity.HologramEntity;
+import gt.creeperface.holograms.placeholder.MatchedPlaceholder;
 import lombok.*;
 
 import java.util.*;
@@ -26,7 +26,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
 
 //    private final List<PlaceholderAdapter.MatchedPlaceholder> placeholderMap = new ArrayList<>();
 
-    private final Set<String> placeholders = new HashSet<>();
+    private final Set<MatchedPlaceholder> placeholders = new HashSet<>();
 
     @Getter
     private boolean visitorSensitive;
@@ -147,7 +147,7 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
         return new ArrayList<>(this.translations);
     }
 
-    public List<List<List<PlaceholderAdapter.MatchedPlaceholder>>> getTranslationPlaceholders() {
+    public List<List<List<MatchedPlaceholder>>> getTranslationPlaceholders() {
         return this.translations.stream().map(HologramTranslation::getPlaceholders).collect(Collectors.toList());
     }
 
@@ -165,12 +165,13 @@ public class Hologram implements gt.creeperface.holograms.api.Hologram {
         }
     }
 
+    @Override
     public void reloadActivePlaceholders() {
         this.placeholders.clear();
 
         this.translations.forEach(tr -> {
             tr.mapPlaceholders();
-            this.placeholders.addAll(tr.getPlaceholderNames());
+            this.placeholders.addAll(tr.getPlaceholders().stream().flatMap(Collection::stream).collect(Collectors.toList()));
         });
 
         this.visitorSensitive = Holograms.getInstance().getPlaceholderAdapter().containsVisitorSensitivePlaceholder(this.placeholders);

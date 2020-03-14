@@ -1,31 +1,35 @@
 package gt.creeperface.holograms.placeholder;
 
 import cn.nukkit.Player;
+import cn.nukkit.event.EventHandler;
+import cn.nukkit.event.Listener;
 import com.creeperface.nukkit.placeholderapi.PlaceholderAPIIml;
 import com.creeperface.nukkit.placeholderapi.api.Placeholder;
 import com.creeperface.nukkit.placeholderapi.api.PlaceholderAPI;
+import com.creeperface.nukkit.placeholderapi.api.event.PlaceholderAPIInitializeEvent;
+import com.creeperface.nukkit.placeholderapi.api.scope.GlobalScope;
 import com.creeperface.nukkit.placeholderapi.api.util.MatchedGroup;
 import com.creeperface.nukkit.placeholderapi.api.util.UtilsKt;
 import gt.creeperface.holograms.Holograms;
+import gt.creeperface.holograms.api.Hologram;
 import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
+import gt.creeperface.holograms.placeholder.PlaceholderAPIAdapter.MatchedPlaceholderLocal;
+import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * @author CreeperFace
  */
-public class PlaceholderAPIAdapter implements PlaceholderAdapter {
+public class PlaceholderAPIAdapter implements PlaceholderAdapter<MatchedPlaceholderLocal>, Listener {
 
     private final PlaceholderAPI api = PlaceholderAPIIml.getInstance();
 
-    @SuppressWarnings("unchecked")
     public PlaceholderAPIAdapter() {
         Holograms plugin = Holograms.getInstance();
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
 //        Placeholder placeholder = api.getPlaceholder("lang");
 //
 //        if (placeholder != null) {
@@ -33,40 +37,66 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
 //        }
     }
 
-    @Override
-    public Map<Long, Map<String, String>> translatePlaceholders(Collection<String> placeholders, Collection<Player> players) {
-        List<Placeholder> instances = api.getPlaceholders().entrySet().stream().filter(entry -> entry.getValue().isVisitorSensitive() && placeholders.contains(entry.getKey())).map(Map.Entry::getValue).collect(Collectors.toList());
+    @EventHandler
+    public void onInit(PlaceholderAPIInitializeEvent e) {
+        Holograms plugin = Holograms.getInstance();
 
-        Map<Long, Map<String, String>> translations = new HashMap<>();
-
-        players.forEach(p -> {
-            Map<String, String> replaced = new HashMap<>();
-
-            instances.forEach(hologram -> replaced.put(hologram.getName(), hologram.getValue(p)));
-
-            translations.put(p.getId(), replaced);
-        });
-
-        return translations;
+        for (Hologram hologram : plugin.getHolograms().values()) {
+            hologram.reloadActivePlaceholders();
+        }
     }
 
     @Override
-    public Map<String, String> translatePlaceholders(Collection<String> placeholders) {
-        List<Placeholder> instances = api.getPlaceholders().entrySet().stream().filter(entry -> !entry.getValue().isVisitorSensitive() && placeholders.contains(entry.getKey())).map(Map.Entry::getValue).collect(Collectors.toList());
+    public Map<Long, Map<String, String>> translatePlaceholders(Collection<MatchedPlaceholderLocal> placeholders, Collection<Player> players) {
+        Map<Long, Map<String, String>> values = new HashMap<>();
 
-        Map<String, String> translations = new HashMap<>();
+        List<Entry> entries = new LinkedList<>();
+        for (MatchedPlaceholderLocal match : placeholders) {
+            Placeholder<?> placeholder = api.getPlaceholder(match.name);
 
-        for (Placeholder placeholder : instances) {
-            translations.put(placeholder.getName(), placeholder.getValue());
+            if (placeholder == null || !placeholder.isVisitorSensitive()) {
+                continue;
+            }
+
+            entries.add(new Entry(match, placeholder));
         }
 
-        return translations;
+        for (Player player : players) {
+            Map<String, String> replaced = new HashMap<>();
+
+            for (Entry entry : entries) {
+                replaced.put(
+                        entry.match.raw,
+                        entry.placeholder.getValue(entry.match.group.getParams(), GlobalScope.INSTANCE.getDefaultContext(), player));
+            }
+
+            values.put(player.getId(), replaced);
+        }
+
+        return values;
     }
 
     @Override
-    public boolean containsVisitorSensitivePlaceholder(Collection<String> placeholders) {
-        for (String pl : placeholders) {
-            Placeholder placeholder = api.getPlaceholder(pl);
+    public Map<String, String> translatePlaceholders(Collection<MatchedPlaceholderLocal> placeholders) {
+        Map<String, String> values = new HashMap<>();
+
+        for (MatchedPlaceholderLocal match : placeholders) {
+            Placeholder<?> placeholder = api.getPlaceholder(match.name);
+
+            if (placeholder == null || placeholder.isVisitorSensitive()) {
+                continue;
+            }
+
+            values.put(match.raw, placeholder.getValue(match.group.getParams(), GlobalScope.INSTANCE.getDefaultContext(), null));
+        }
+
+        return values;
+    }
+
+    @Override
+    public boolean containsVisitorSensitivePlaceholder(Collection<MatchedPlaceholderLocal> placeholders) {
+        for (MatchedPlaceholderLocal pl : placeholders) {
+            Placeholder<?> placeholder = api.getPlaceholder(pl.group.getValue());
 
             if (placeholder != null && placeholder.isVisitorSensitive()) {
                 return true;
@@ -77,7 +107,7 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
     }
 
     @Override
-    public List<MatchedPlaceholder> matchPlaceholders(String text) {
+    public List<MatchedPlaceholderLocal> matchPlaceholders(String text) {
         return UtilsKt.matchPlaceholders(text).stream().map(MatchedPlaceholderLocal::new).collect(Collectors.toList());
     }
 
@@ -91,7 +121,7 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
 
     @Override
     public int getLanguage(Player p) {
-        Placeholder placeholder = api.getPlaceholder("lang");
+        Placeholder<?> placeholder = api.getPlaceholder("lang");
 
         if (placeholder != null) {
             String o = placeholder.getValue(p);
@@ -110,7 +140,7 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
 
     @Override
     public Object getValue(String placeholder) {
-        Placeholder p = api.getPlaceholder(placeholder);
+        Placeholder<?> p = api.getPlaceholder(placeholder);
 
         if (p != null) {
             return p.getDirectValue(null);
@@ -124,13 +154,19 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter {
         return true;
     }
 
+    @RequiredArgsConstructor
+    private static class Entry {
+        public final MatchedPlaceholderLocal match;
+        public final Placeholder<?> placeholder;
+    }
+
     @ToString(callSuper = true)
     public static class MatchedPlaceholderLocal extends MatchedPlaceholder {
 
         private final MatchedGroup group;
 
         public MatchedPlaceholderLocal(MatchedGroup matchedGroup) {
-            super(matchedGroup.getValue(), matchedGroup.getStart(), matchedGroup.getEnd());
+            super(matchedGroup.getRaw(), matchedGroup.getValue(), matchedGroup.getStart(), matchedGroup.getEnd());
             this.group = matchedGroup;
         }
     }

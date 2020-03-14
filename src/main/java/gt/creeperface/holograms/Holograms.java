@@ -19,7 +19,6 @@ import gt.creeperface.holograms.api.HologramAPI;
 import gt.creeperface.holograms.api.grid.source.GridSource;
 import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 import gt.creeperface.holograms.command.HologramCommand;
-import gt.creeperface.holograms.compatibility.network.PacketManager;
 import gt.creeperface.holograms.entity.HologramEntity;
 import gt.creeperface.holograms.form.FormWindowHandler;
 import gt.creeperface.holograms.form.FormWindowManager;
@@ -29,6 +28,7 @@ import gt.creeperface.holograms.grid.source.ExampleGridSource;
 import gt.creeperface.holograms.grid.source.MySQLGridSource;
 import gt.creeperface.holograms.grid.source.PlaceholderGridSource;
 import gt.creeperface.holograms.placeholder.DefaultPlaceholderAdapter;
+import gt.creeperface.holograms.placeholder.MatchedPlaceholder;
 import gt.creeperface.holograms.placeholder.PlaceholderAPIAdapter;
 import gt.creeperface.holograms.task.HologramUpdater;
 import gt.creeperface.holograms.util.Values;
@@ -75,7 +75,7 @@ public class Holograms extends HologramAPI implements Listener {
     private HologramConfiguration configuration;
 
     @Getter
-    private PlaceholderAdapter placeholderAdapter;
+    private PlaceholderAdapter<MatchedPlaceholder> placeholderAdapter;
 
     private Map<String, BiFunction<AbstractGridSource.SourceParameters, Map<String, Object>, GridSource>> gridSources = new HashMap<>();
     private Map<String, Supplier<GridSource<Object>>> gridSourceInstances = new HashMap<>();
@@ -86,7 +86,11 @@ public class Holograms extends HologramAPI implements Listener {
     @Override
     public void onLoad() {
         if (loaded) return;
+    }
 
+    @Override
+    public void onEnable() {
+        if (loaded) return;
         getLogger().info("Loading characters...");
         loadCharsWidths();
 
@@ -101,19 +105,12 @@ public class Holograms extends HologramAPI implements Listener {
         saveResource("holograms.yml");
         path = new File(getDataFolder(), "holograms.yml");
 
-        PacketManager.init();
-
         getLogger().info("Loading placeholders");
         initPlaceholderAdapter();
 
         //init grid sources
         getLogger().info("Registering default grid sources");
         registerDefaultGridSources();
-    }
-
-    @Override
-    public void onEnable() {
-        if (loaded) return;
 
         getLogger().info("Loading grid config...");
         registerGridSourceInstances();
@@ -572,9 +569,10 @@ public class Holograms extends HologramAPI implements Listener {
         return null;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void initPlaceholderAdapter() {
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            this.placeholderAdapter = new PlaceholderAPIAdapter();
+            this.placeholderAdapter = (PlaceholderAdapter) new PlaceholderAPIAdapter();
             return;
         }
 

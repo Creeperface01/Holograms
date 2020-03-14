@@ -17,13 +17,13 @@ import gt.creeperface.holograms.Hologram.EntityEntry;
 import gt.creeperface.holograms.HologramConfiguration;
 import gt.creeperface.holograms.Holograms;
 import gt.creeperface.holograms.api.grid.source.GridSource;
-import gt.creeperface.holograms.api.placeholder.PlaceholderAdapter;
 import gt.creeperface.holograms.compatibility.network.PacketManager;
 import gt.creeperface.holograms.compatibility.network.packet.PacketHolder;
 import gt.creeperface.holograms.compatibility.network.packet.generic.AbstractMovePacket;
 import gt.creeperface.holograms.entity.data.EntityData;
 import gt.creeperface.holograms.grid.GridFormatter;
 import gt.creeperface.holograms.grid.source.LoadedGridSource;
+import gt.creeperface.holograms.placeholder.MatchedPlaceholder;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -535,7 +535,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         return packetEntry;
     }
 
-    private List<List<String>> addPlaceHolders(List<List<String>> data, Map<String, String> placeHolders, List<List<List<PlaceholderAdapter.MatchedPlaceholder>>> matched) {
+    private List<List<String>> addPlaceHolders(List<List<String>> data, Map<String, String> placeHolders, List<List<List<MatchedPlaceholder>>> matched) {
         List<List<String>> trans = new ArrayList<>(data.size());
 
         int i = 0;
@@ -546,13 +546,13 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         return trans;
     }
 
-    private List<String> replaceTranslation(List<String> translation, Map<String, String> placeHolders, List<List<PlaceholderAdapter.MatchedPlaceholder>> matched) {
+    private List<String> replaceTranslation(List<String> translation, Map<String, String> placeHolders, List<List<MatchedPlaceholder>> matched) {
         List<String> replaced = new ArrayList<>(translation.size());
 
         for (int i = 0; i < translation.size(); i++) {
             String line = translation.get(i);
 
-            List<PlaceholderAdapter.MatchedPlaceholder> transMatched = matched.get(i);
+            List<MatchedPlaceholder> transMatched = matched.get(i);
 
             if (transMatched.isEmpty()) {
                 replaced.add(line);
@@ -563,16 +563,16 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
 //            int offset = 0;
 
             for (int j = 0; j < transMatched.size(); j++) {
-                PlaceholderAdapter.MatchedPlaceholder rowMatched = transMatched.get(j);
+                MatchedPlaceholder rowMatched = transMatched.get(j);
 
-                String replacement = placeHolders.get(rowMatched.name);
+                String replacement = placeHolders.get(rowMatched.raw);
 
                 if (replacement == null) {
 //                    rowMatched.offset = offset;
                     continue;
                 }
 
-                line = line.replace("%" + rowMatched.name + "%", replacement);
+                line = line.replace(rowMatched.raw, replacement);
 
 //                int start = rowBuilder.indexOf(find);
 //
@@ -683,7 +683,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
             return;
         }
 
-        List<List<List<PlaceholderAdapter.MatchedPlaceholder>>> translationPlaceholders = hologram.getTranslationPlaceholders();
+        List<List<List<MatchedPlaceholder>>> translationPlaceholders = hologram.getTranslationPlaceholders();
 
 //        for (List<List<PlaceholderAdapter.MatchedPlaceholder>> translationPlaceholder : translationPlaceholders) {
 //            for (List<PlaceholderAdapter.MatchedPlaceholder> placeholders : translationPlaceholder) {
@@ -845,7 +845,7 @@ public class HologramUpdater extends Thread implements InterruptibleThread {
         private final Collection<PlayerEntry> players;
         private Map<String, String> placeholders;
         private Map<Long, Map<String, String>> playerPlaceholders;
-        private List<List<List<PlaceholderAdapter.MatchedPlaceholder>>> matchedPlaceholders;
+        private List<List<List<MatchedPlaceholder>>> matchedPlaceholders;
 
     }
 

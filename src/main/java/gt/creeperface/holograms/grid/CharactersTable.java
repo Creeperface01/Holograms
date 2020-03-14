@@ -1,6 +1,5 @@
 package gt.creeperface.holograms.grid;
 
-import cn.nukkit.utils.MainLogger;
 import gt.creeperface.holograms.util.Utils;
 import lombok.experimental.UtilityClass;
 
@@ -140,6 +139,5 @@ public final class CharactersTable {
 //            builder.append(' ');
         }
 
-        MainLogger.getLogger().info(builder.toString());
     }
 }

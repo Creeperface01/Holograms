@@ -33,4 +33,7 @@ public interface Hologram {
      * Force update the hologram - send current state to all viewers
      */
     void update(Player... players);
+
+    void reloadActivePlaceholders();
+
 }

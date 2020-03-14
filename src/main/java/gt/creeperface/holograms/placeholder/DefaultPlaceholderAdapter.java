@@ -8,10 +8,10 @@ import java.util.*;
 /**
  * @author CreeperFace
  */
-public class DefaultPlaceholderAdapter implements PlaceholderAdapter {
+public class DefaultPlaceholderAdapter implements PlaceholderAdapter<MatchedPlaceholder> {
 
     @Override
-    public Map<String, String> translatePlaceholders(Collection<String> placeholders) {
+    public Map<String, String> translatePlaceholders(Collection<MatchedPlaceholder> placeholders) {
         return new HashMap<>();
     }
 
@@ -19,12 +19,12 @@ public class DefaultPlaceholderAdapter implements PlaceholderAdapter {
      * shouldn't be called
      */
     @Override
-    public Map<Long, Map<String, String>> translatePlaceholders(Collection<String> placeholders, Collection<Player> players) {
+    public Map<Long, Map<String, String>> translatePlaceholders(Collection<MatchedPlaceholder> placeholders, Collection<Player> players) {
         return new HashMap<>();
     }
 
     @Override
-    public boolean containsVisitorSensitivePlaceholder(Collection<String> placeholders) {
+    public boolean containsVisitorSensitivePlaceholder(Collection<MatchedPlaceholder> placeholders) {
         return false;
     }
 
