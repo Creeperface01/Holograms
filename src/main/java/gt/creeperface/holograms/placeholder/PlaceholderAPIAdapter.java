@@ -1,13 +1,10 @@
 package gt.creeperface.holograms.placeholder;
 
 import cn.nukkit.Player;
-import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.Listener;
 import com.creeperface.nukkit.placeholderapi.PlaceholderAPIIml;
 import com.creeperface.nukkit.placeholderapi.api.Placeholder;
 import com.creeperface.nukkit.placeholderapi.api.PlaceholderAPI;
-import com.creeperface.nukkit.placeholderapi.api.event.PlaceholderAPIInitializeEvent;
-import com.creeperface.nukkit.placeholderapi.api.scope.GlobalScope;
 import com.creeperface.nukkit.placeholderapi.api.util.MatchedGroup;
 import com.creeperface.nukkit.placeholderapi.api.util.UtilsKt;
 import gt.creeperface.holograms.Holograms;
@@ -37,8 +34,7 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter<MatchedPlacehol
 //        }
     }
 
-    @EventHandler
-    public void onInit(PlaceholderAPIInitializeEvent e) {
+    public void onInit() {
         Holograms plugin = Holograms.getInstance();
 
         for (Hologram hologram : plugin.getHolograms().values()) {
@@ -67,7 +63,7 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter<MatchedPlacehol
             for (Entry entry : entries) {
                 replaced.put(
                         entry.match.raw,
-                        entry.placeholder.getValue(entry.match.group.getParams(), GlobalScope.INSTANCE.getDefaultContext(), player));
+                        entry.placeholder.getValue(entry.match.group.getParams(), player));
             }
 
             values.put(player.getId(), replaced);
@@ -87,7 +83,7 @@ public class PlaceholderAPIAdapter implements PlaceholderAdapter<MatchedPlacehol
                 continue;
             }
 
-            values.put(match.raw, placeholder.getValue(match.group.getParams(), GlobalScope.INSTANCE.getDefaultContext(), null));
+            values.put(match.raw, placeholder.getValue(match.group.getParams(), null));
         }
 
         return values;
