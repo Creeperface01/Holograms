@@ -37,7 +37,7 @@ public class HologramEntity extends Entity {
         this.hologram = Holograms.getInstance().getHologram(this.hologramId);
 
         if (this.hologram == null) {
-            close();
+            closeHologram();
             return;
         }
 
@@ -144,7 +144,7 @@ public class HologramEntity extends Entity {
         }*/
 
         if (hologram == null) {
-            close();
+            closeHologram();
             return false;
         }
 
@@ -226,6 +226,22 @@ public class HologramEntity extends Entity {
 
     @Override
     public void close() {
+        if (closed) {
+            return;
+        }
+
+        Exception e = new Exception();
+        StackTraceElement element = e.getStackTrace()[1];
+        String path = element.getClassName() + "." + element.getMethodName();
+
+        if (!path.equals("cn.nukkit.level.format.generic.BaseFullChunk.unload")) {
+            throw new UnsupportedOperationException("Cannot not close hologram entity. Use closeHologram() to perform entity deletion");
+        }
+
+        closeHologram();
+    }
+
+    public void closeHologram() {
         super.close();
 
         if (this.hologram != null)

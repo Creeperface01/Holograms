@@ -80,7 +80,7 @@ public class FormWindowHandler {
                 plugin.getManager().addGridWindow(p, entity);
                 break;
             case 3:
-                entity.close();
+                entity.closeHologram();
                 p.sendMessage(TextFormat.GREEN + "Hologram removed");
 
                 plugin.editors.remove(p.getId());
