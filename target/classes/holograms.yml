@@ -1,0 +1,19 @@
+#do not change this
+version: 2
+
+#example of hologram:
+#- id: exampleHologram
+#  lines:
+#  - "This is an example hologram"
+#  - "And this is a second line"
+
+holograms:
+  example:
+    update: -1
+    data:
+    - - "Example hologram"
+      - "Yes, and second line"
+      - "!!!"
+    - - "Zkusebni hologram"
+      - "Ano, druhy radek"
+      - "!!!"

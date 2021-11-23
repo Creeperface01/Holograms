@@ -1,0 +1,14 @@
+#grids:
+#  mysqlgrid: #name of the grid
+#    source: mysql #source type
+#    offset: 0 #data row offset in the grid source
+#    limit: 10 #maximal count of rows loaded/displayed
+#    refresh: 10 #the minimal interval in seconds when source will reload the data
+#    data: #data for the specific grid source (mysql in this case)
+#      columns: ["column1", "column3"] #can be omitted or left empty to select all the columns
+#      table: gridtable #table or view to get data from
+#
+#  jsongrid: #another example (json source)
+#    source: "json"
+#    data:
+#      file: jsongrid.json #file containing json source

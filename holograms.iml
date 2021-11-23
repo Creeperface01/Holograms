@@ -9,9 +9,10 @@
             <entry key="com.zeroturnaround.jrebel.remoting.DeleteUnindexedFiles" value="false" />
             <entry key="com.zeroturnaround.jrebel.remoting.ModuleRemoteServerSelection" value="off" />
             <entry key="jrebelEnabled" value="true" />
-            <entry key="lastExternalPluginCheckTime" value="1615568289284" />
+            <entry key="lastExternalPluginCheckTime" value="1637088799012" />
           </map>
         </option>
+        <option name="version" value="1" />
       </configuration>
     </facet>
   </component>
@@ -28,18 +29,10 @@
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.projectlombok:lombok:1.18.12" level="project" />
     <orderEntry type="library" name="Maven: cn.nukkit:nukkit:1.0-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: com.creeperface.nukkit.placeholderapi:PlaceholderAPI:1.4-SNAPSHOT" level="project" />
-    <orderEntry type="library" name="Maven: org.jetbrains.kotlin:kotlin-reflect:1.4.21" level="project" />
-    <orderEntry type="library" name="Maven: org.jetbrains.kotlin:kotlin-stdlib:1.4.21" level="project" />
-    <orderEntry type="library" name="Maven: org.jetbrains.kotlin:kotlin-stdlib-common:1.4.21" level="project" />
+    <orderEntry type="library" name="Maven: org.jetbrains.kotlin:kotlin-stdlib:1.4.31" level="project" />
+    <orderEntry type="library" name="Maven: org.jetbrains.kotlin:kotlin-stdlib-common:1.4.31" level="project" />
     <orderEntry type="library" name="Maven: org.jetbrains:annotations:13.0" level="project" />
-    <orderEntry type="module-library">
-      <library name="Maven: ru.nukkit.dblib:dblib:0">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/lib/DbLib.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
+    <orderEntry type="library" name="Maven: org.jetbrains.kotlin:kotlin-reflect:1.4.31" level="project" />
+    <orderEntry type="library" name="DbLib" level="project" />
   </component>
 </module>
