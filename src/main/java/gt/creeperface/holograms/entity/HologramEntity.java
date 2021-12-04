@@ -44,6 +44,21 @@ public class HologramEntity extends Entity {
         this.hologram.addEntity(this);
     }
 
+    public HologramEntity(FullChunk chunk, CompoundTag nbt, Hologram hologram) {
+        super(chunk, nbt);
+
+        this.keepMovement = true;
+        this.hologramId = this.namedTag.getString("hologramId");
+        this.hologram = hologram;
+
+        if (this.hologram == null) {
+            closeHologram();
+            return;
+        }
+
+        this.hologram.addEntity(this);
+    }
+
     @Override
     public int getNetworkId() {
         return -1;
