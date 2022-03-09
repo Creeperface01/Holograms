@@ -1,9 +1,9 @@
 package gt.creeperface.holograms.sql;
 
 import cn.nukkit.utils.MainLogger;
-import ru.nukkit.dblib.DbLib;
-import ru.nukkit.dblib.core.M;
-import ru.nukkit.dblib.nukkit.ConfigNukkit;
+//import ru.nukkit.dblib.DbLib;
+//import ru.nukkit.dblib.core.M;
+//import ru.nukkit.dblib.nukkit.ConfigNukkit;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -14,7 +14,7 @@ import java.util.TimeZone;
  * @author CreeperFace
  */
 public final class MySQLManager {
-
+/*
     private static ConfigNukkit config;
 
     static {
@@ -56,5 +56,5 @@ public final class MySQLManager {
             M.debugException(e);
             return null;
         }
-    }
+    }*/
 }

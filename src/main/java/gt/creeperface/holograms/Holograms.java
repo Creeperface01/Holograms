@@ -200,6 +200,7 @@ public class Holograms extends HologramAPI implements Listener {
 
     @SuppressWarnings("unchecked")
     public void reloadHolograms() {
+        /*
         Config config = new Config(path, Config.YAML);
         if (config.getInt("version", 0) < 2) {
             loadOldData(config);
@@ -254,6 +255,7 @@ public class Holograms extends HologramAPI implements Listener {
         synchronized (hologramLock) {
             this.holograms = map;
         }
+        */
     }
 
     private void checkLineCount(List<List<String>> trans, String hologramId) {
